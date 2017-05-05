@@ -1,6 +1,6 @@
 var $ = {};
 
-function Mutex(){
+function CallbackMutex(){
     var thiz = this;
     thiz.wait_write = [];
     thiz.wait_read = [];
@@ -52,9 +52,9 @@ function Mutex(){
     }
 }
 
-function AsyncMutex() {
+function Mutex() {
     var thiz = this;
-    thiz.mutex = new Mutex();
+    thiz.mutex = new CallbackMutex();
     
     thiz.lock_ = function(func, lock_func) {
         return new Promise(function(resolve, reject){
@@ -81,12 +81,12 @@ function AsyncMutex() {
     }
 }
 
-$.mutex = function() {
-    return new Mutex();
+$.callbackMutex = function() {
+    return new CallbackMutex();
 }
 
-$.asyncMutex = function() {
-    return new AsyncMutex();
+$.mutex = function() {
+    return new Mutex();
 }
 
 

@@ -8,7 +8,7 @@ async function delay(ms){
 
 async function test(){
 
-    var l0 = rw_mutex.asyncMutex();
+    var l0 = rw_mutex.mutex();
     
     l0.rlock(async()=>{
         console.log('A: read step 0');
