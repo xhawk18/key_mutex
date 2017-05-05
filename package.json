@@ -1,8 +1,8 @@
 {
   "name": "rw_mutex",
-  "version": "1.0.0",
-  "description": "read-write mutex",
-  "main": "rw_mutex.js",
+  "version": "1.0.1",
+  "description": "read-write mutex, key mapped rw mutex",
+  "main": "index.js",
   "scripts": {
     "test": "test"
   },

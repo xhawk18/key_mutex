@@ -1,4 +1,4 @@
-var rw_mutex = require('./rw_mutex');
+var mutex = require('./index');
 
 function delay(ms){
     return new Promise(function(resolve){
@@ -8,7 +8,7 @@ function delay(ms){
 
 function test(){
 
-    var l0 = rw_mutex.mutex();
+    var l0 = mutex.mutex();
     
     l0.rlock(function(){
         console.log('A: read step 0');
