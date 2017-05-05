@@ -1,0 +1,26 @@
+{
+  "name": "rw_mutex",
+  "version": "1.0.0",
+  "description": "read-write mutex with await/async style.",
+  "main": "rw_mutex.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "read-write",
+    "mutex",
+    "lock",
+    "await",
+    "async"
+  ],
+  "author": "xhawk18@gmail.com",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xhawk18/rw_mutex.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xhawk18/rw_mutex/issues"
+  },
+  "homepage": "https://github.com/xhawk18/rw_mutex#readme"
+}
