@@ -1,5 +1,5 @@
 {
-  "name": "rw_mutex",
+  "name": "key_mutex",
   "version": "1.0.1",
   "description": "key-mapped read-write mutex",
   "main": "index.js",
@@ -17,10 +17,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xhawk18/rw_mutex.git"
+    "url": "git+https://github.com/xhawk18/key_mutex.git"
   },
   "bugs": {
-    "url": "https://github.com/xhawk18/rw_mutex/issues"
+    "url": "https://github.com/xhawk18/key_mutex/issues"
   },
-  "homepage": "https://github.com/xhawk18/rw_mutex#readme"
+  "homepage": "https://github.com/xhawk18/key_mutex#readme"
 }
