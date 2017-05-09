@@ -13,7 +13,7 @@ function CallbackMutex(){
             && thiz.wait_write.length > 0){
             var op = thiz.wait_write.shift();
             thiz.status = 2;
-            op(thiz.write_release);
+            op(thiz.unlock);
         }
 
         while((thiz.status == 0 || thiz.status == 1)
@@ -21,26 +21,25 @@ function CallbackMutex(){
             var op = thiz.wait_read.shift();
             thiz.status = 1;
             thiz.reading++;
-            op(thiz.read_release);
+            op(thiz.unlock);
         }
     }
 
-    thiz.read_release = function() {
+    thiz.unlock = function() {
         setImmediate(function(){
-            thiz.reading--;
-            if(thiz.reading == 0)
+            if(thiz.status == 2)
                 thiz.status = 0;
+            else if(thiz.status == 1){
+                if(thiz.reading > 0){
+                    thiz.reading--;
+                    if(thiz.reading == 0)
+                        thiz.status = 0;
+                }
+            }
             thiz.next();
         });
     }
 
-    thiz.write_release = function() {
-        setImmediate(function(){
-            thiz.status = 0;
-            thiz.next();
-        });
-    }
-    
     thiz.rlock = function(func) {
         thiz.wait_read.push(func);
         thiz.next();
@@ -58,14 +57,14 @@ function Mutex() {
     
     thiz.lock_ = function(func, lock_func) {
         return new Promise(function(resolve, reject){
-            lock_func(function(release){
+            lock_func(function(unlock){
                 Promise.resolve().then(function(){
                     return func();
                 }).then(function(ret){
-                    release();
+                    unlock();
                     resolve(ret);
                 }, function(err){
-                    release();
+                    unlock();
                     reject(err);
                 });
             });

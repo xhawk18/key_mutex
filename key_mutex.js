@@ -25,23 +25,23 @@ function CallbackMutex(){
 
     thiz.rlock = function(key, func) {
         var value = thiz.getMutex(key);
-        value.mutex.rlock(function(release){
-            function my_release(){
+        value.mutex.rlock(function(unlock){
+            function my_unlock(){
                 thiz.putMutex(key, value);
-                release();
+                unlock();
             }
-            func(my_release);
+            func(my_unlock);
         });
     }
 
     thiz.wlock = function(key, func) {
         var value = thiz.getMutex(key);
-        value.mutex.wlock(function(release){
-            function my_release(){
+        value.mutex.wlock(function(unlock){
+            function my_unlock(){
                 thiz.putMutex(key, value);
-                release();
+                unlock();
             }
-            func(my_release);
+            func(my_unlock);
         });
     }
 }
@@ -102,14 +102,14 @@ function Mutex2() {
     
     thiz.lock_ = function(key, func, lock_func) {
         return new Promise(function(resolve, reject){
-            lock_func(key, function(release){
+            lock_func(key, function(unlock){
                 Promise.resolve().then(function(){
                     return func();
                 }).then(function(ret){
-                    release();
+                    unlock();
                     resolve(ret);
                 }, function(err){
-                    release();
+                    unlock();
                     reject(err);
                 });
             });
