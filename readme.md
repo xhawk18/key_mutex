@@ -10,7 +10,7 @@ ex0_task_b, step 1
 ex0_task_a, step 2, =======
 ex0_task_b, step 2, =======
 </pre>
-(Source code)
+#### (Source code)
 <pre>
 function delay(ms){
     return new Promise(function(resolve){
@@ -37,14 +37,14 @@ async function example0(){
 example0();
 </pre>
 
-If we use mutex lock the asynchronized tasks, will will output
+If we use mutex to lock the asynchronized tasks, will output
 <pre>
 ex1_task_a, step 1
 ex1_task_a, step 2, =======
 ex1_task_b, step 1
 ex1_task_b, step 2, =======
 </pre>
-(Source code)
+#### (Source code)
 <pre>
 var key_mutex = require('key_mutex');
 var mutex = key_mutex.mutex();
@@ -84,7 +84,7 @@ ex2_task, step 1
 ex2_task, step 2, =======
 returns from ex2_task
 </pre>
-(Source code)
+#### (Source code)
 <pre>
 async function example2(){
     var ret = <strong>await</strong> mutex.lock(async function(){
@@ -104,7 +104,7 @@ async function example2(){
 ex3_task, step 1
 throw my error
 </pre>
-(Source code)
+#### (Source code)
 <pre>
 async function example3(){
     <strong>try</strong>{
@@ -135,7 +135,7 @@ ex4_task_a, key = abcd, step 1
 ex4_task_b, key = 1234, step 2, =======
 ex4_task_a, key = abcd, step 2, =======
 </pre>
-(Source code)
+#### (Source code)
 <pre>
 async function ex4_task_a(key){
     mutex.lock(<strong>key</strong>, async function(){
@@ -172,7 +172,7 @@ ex5_task_c, reader step 2, =======
 ex5_task_b, writer step 1
 ex1_task_b, writer step 2, =======
 </pre>
-(Source code)
+#### (Source code)
 <pre>
 async function ex5_task_a(){
     mutex.<strong>rlock</strong>(async function(){
@@ -217,7 +217,7 @@ ex6_task_c, key = 1234, reader step 2, =======
 ex6_task_d, key = 5678, reader step 1
 ex6_task_d, key = 5678, reader step 2, =======
 </pre>
-(Source code)
+#### (Source code)
 <pre>
 async function ex6_task_a(key){
     mutex.rlock(key, async function(){
