@@ -100,7 +100,7 @@ async function example2(){
 
 ## Example 3 - Supports exceptions
 "key_mutex" supports exceptions. This example will output 
-</pre>
+<pre>
 ex3_task, step 1
 throw my error
 </pre>
