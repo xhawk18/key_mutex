@@ -2,60 +2,60 @@ var $ = {};
 
 function CallbackMutex(){
     var thiz = this;
-    thiz.wait_write = [];
-    thiz.wait_read = [];
-    thiz.status = 0;    //0, no action, 1, reading, 2, writing
-    thiz.reading = 0;
+    var wait_write = [];
+    var wait_read = [];
+    var status = 0;    //0, no action, 1, reading, 2, writing
+    var reading_peers = 0;
 
-    thiz.next = function() {
-        //console.log('thiz.status ', thiz.status);
-        if(thiz.status == 0
-            && thiz.wait_write.length > 0){
-            var op = thiz.wait_write.shift();
-            thiz.status = 2;
-            op(thiz.unlock);
+    var next = function() {
+        //console.log('status ', status);
+        if(status == 0
+            && wait_write.length > 0){
+            var op = wait_write.shift();
+            status = 2;
+            op(unlock);
         }
 
-        while((thiz.status == 0 || thiz.status == 1)
-            && thiz.wait_read.length > 0){
-            var op = thiz.wait_read.shift();
-            thiz.status = 1;
-            thiz.reading++;
-            op(thiz.unlock);
+        while((status == 0 || status == 1)
+            && wait_read.length > 0){
+            var op = wait_read.shift();
+            status = 1;
+            reading_peers++;
+            op(unlock);
         }
     }
 
-    thiz.unlock = function() {
+    var unlock = function() {
         setImmediate(function(){
-            if(thiz.status == 2)
-                thiz.status = 0;
-            else if(thiz.status == 1){
-                if(thiz.reading > 0){
-                    thiz.reading--;
-                    if(thiz.reading == 0)
-                        thiz.status = 0;
+            if(status == 2)
+                status = 0;
+            else if(status == 1){
+                if(reading_peers > 0){
+                    reading_peers--;
+                    if(reading_peers == 0)
+                        status = 0;
                 }
             }
-            thiz.next();
+            next();
         });
     }
 
     thiz.rlock = function(func) {
-        thiz.wait_read.push(func);
-        thiz.next();
+        wait_read.push(func);
+        next();
     }
     
     thiz.wlock = function(func) {
-        thiz.wait_write.push(func);
-        thiz.next();
+        wait_write.push(func);
+        next();
     }
 }
 
 function Mutex() {
     var thiz = this;
-    thiz.mutex = new CallbackMutex();
+    var mutex = new CallbackMutex();
     
-    thiz.lock_ = function(func, lock_func) {
+    var lock_ = function(func, lock_func) {
         return new Promise(function(resolve, reject){
             lock_func(function(unlock){
                 Promise.resolve().then(function(){
@@ -72,11 +72,11 @@ function Mutex() {
     }
     
     thiz.rlock = function(func) {
-        return thiz.lock_(func, thiz.mutex.rlock);
+        return lock_(func, mutex.rlock);
     }
     
     thiz.wlock = function(func) {
-        return thiz.lock_(func, thiz.mutex.wlock);
+        return lock_(func, mutex.wlock);
     }
 }
 

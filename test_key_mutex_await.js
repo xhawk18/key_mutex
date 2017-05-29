@@ -8,7 +8,7 @@ async function delay(ms){
 
 async function test(){
 
-    var lock = mutex.key_mutex();
+    var lock = mutex.mutex();
     
     var waits = [];
 

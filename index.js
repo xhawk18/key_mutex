@@ -3,11 +3,11 @@ var key_mutex = require('./key_mutex');
 
 var $ = {}
 
-$.key_mutex = function() {
+$.mutex = function() {
     return key_mutex.mutex();
 }
 
-$.mutex = function(){
+$.simple_mutex = function(){
     return rw_mutex.mutex();
 }
 
