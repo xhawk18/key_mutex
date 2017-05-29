@@ -1,13 +1,14 @@
 {
   "name": "key_mutex",
-  "version": "2.0.2",
-  "description": "key-mapped read-write mutex",
+  "version": "2.1.1",
+  "description": "key-mapped read-write mutex that supports cluster",
   "main": "index.js",
   "scripts": {
     "test": "test"
   },
   "keywords": [
     "read-write",
+    "cluster",
     "mutex",
     "lock",
     "await",
