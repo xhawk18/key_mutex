@@ -220,7 +220,7 @@ ex6_task_d, key = 5678, reader step 2, =======
 #### (Source code)
 <pre>
 async function ex6_task_a(key){
-    mutex.rlock(key, async function(){
+    mutex.rlock(<strong>key</strong>, async function(){
         console.log(`ex6_task_a, key = ${key}, reader step 1`);
         await delay(500);
         console.log(`ex6_task_a, key = ${key}, reader step 2, =======`);
@@ -228,7 +228,7 @@ async function ex6_task_a(key){
 }
 
 async function ex6_task_b(key){
-    mutex.wlock(key, async function(){
+    mutex.wlock(<strong>key</strong>, async function(){
         console.log(`ex6_task_b, key = ${key}, writer step 1`);
         await delay(500);
         console.log(`ex6_task_b, key = ${key}, writer step 2, =======`);
@@ -236,7 +236,7 @@ async function ex6_task_b(key){
 }
 
 async function ex6_task_c(key){
-    mutex.rlock(key, async function(){
+    mutex.rlock(<strong>key</strong>, async function(){
         console.log(`ex6_task_c, key = ${key}, reader step 1`);
         await delay(500);
         console.log(`ex6_task_c, key = ${key}, reader step 2, =======`);
@@ -244,7 +244,7 @@ async function ex6_task_c(key){
 }
 
 async function ex6_task_d(key){
-    mutex.rlock(key, async function(){
+    mutex.rlock(<strong>key</strong>, async function(){
         console.log(`ex6_task_d, key = ${key}, reader step 1`);
         await delay(500);
         console.log(`ex6_task_d, key = ${key}, reader step 2, =======`);
@@ -252,10 +252,10 @@ async function ex6_task_d(key){
 }
 
 async function example6(){
-    ex6_task_a(1234);
-    ex6_task_b(5678);
-    ex6_task_c(1234);
-    ex6_task_d(5678);
+    ex6_task_a(<strong>1234</strong>);
+    ex6_task_b(<strong>5678</strong>);
+    ex6_task_c(<strong>1234</strong>);
+    ex6_task_d(<strong>5678</strong>);
 }
 </pre>
 
