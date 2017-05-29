@@ -1,3 +1,56 @@
+# APIs
+## Module
+```javascript
+var key_mutex = require('key_mutex');
+```
+
+## Create a mutex
+```javascript
+var mutex = key_mutex.mutex();
+```
+
+## Simple lock
+```javascript
+mutex.lock(async function(){
+    ...
+});
+```
+
+## Simple lock with key
+```javascript
+mutex.lock(key, async function(){
+    ...
+});
+```
+
+## Reader lock
+```javascript
+mutex.rlock(async function(){
+    ...
+});
+```
+
+## Reader lock with named key
+```javascript
+mutex.rlock(key, async function(){
+    ...
+});
+```
+
+## Writer lock
+```javascript
+mutex.wlock(async function(){
+    ...
+});
+```
+
+## Writer lock with named key
+```javascript
+mutex.wlock(key, async function(){
+    ...
+});
+```
+
 # Usage & Examples
 
 key_mutex is a nodejs module that supports key-mapped reader-writer mutex.
@@ -258,59 +311,3 @@ async function example6(){
     ex6_task_d(<strong>5678</strong>);
 }
 </pre>
-
-# APIs
-## Module
-```javascript
-var key_mutex = require('key_mutex');
-```
-
-## Create a mutex
-```javascript
-var mutex = key_mutex.mutex();
-```
-
-## Simple lock
-```javascript
-mutex.lock(async function(){
-    ...
-});
-```
-
-## Simple lock with key
-```javascript
-mutex.lock(key, async function(){
-    ...
-});
-```
-
-## Reader lock
-```javascript
-mutex.rlock(async function(){
-    ...
-});
-```
-
-## Reader lock with named key
-```javascript
-mutex.rlock(key, async function(){
-    ...
-});
-```
-
-## Writer lock
-```javascript
-mutex.wlock(async function(){
-    ...
-});
-```
-
-## Writer lock with named key
-```javascript
-mutex.wlock(key, async function(){
-    ...
-});
-```
-
-
-
