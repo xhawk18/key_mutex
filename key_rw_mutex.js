@@ -159,7 +159,7 @@ function Mutex2() {
         return mutex.size();
     }
 }
-*/
+/**/
 
 
 $.mutex = function() {

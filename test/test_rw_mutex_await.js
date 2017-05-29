@@ -1,4 +1,4 @@
-var mutex = require('./index');
+var key_mutex = require('../index');
 
 async function delay(ms){
     return await new Promise(function(resolve){
@@ -8,9 +8,9 @@ async function delay(ms){
 
 async function test(){
 
-    var lock = mutex.mutex();
+    var mutex = key_mutex.mutex();
     
-    lock.rlock(async()=>{
+    mutex.rlock(async()=>{
         console.log('A: read step 0');
         await delay(50);
         console.log('A: read step 1');
@@ -19,7 +19,7 @@ async function test(){
         await delay(50);
     });
 
-    lock.rlock(async()=>{
+    mutex.rlock(async()=>{
         console.log('B: read step 0');
         await delay(50);
         console.log('B: read step 1');
@@ -30,7 +30,7 @@ async function test(){
 
     (async()=> {
         try{
-            await lock.wlock(async()=>{
+            await mutex.wlock(async()=>{
                 console.log('C: write step 0');
                 await delay(50);
                 console.log('C: write step 1');
@@ -44,7 +44,7 @@ async function test(){
         }
     })();
 
-    /* await */ lock.wlock(async()=>{
+    /* await */ mutex.wlock(async()=>{
         console.log('D: write step 0');
         await delay(50);
         console.log('D: write step 1');
@@ -55,7 +55,7 @@ async function test(){
 
 
 
-    lock.rlock(async()=>{
+    mutex.rlock(async()=>{
         console.log('E: read step 0');
         await delay(50);
         console.log('E: read step 1');
@@ -64,7 +64,7 @@ async function test(){
         await delay(50);
     });
 
-    lock.rlock(async()=>{
+    mutex.rlock(async()=>{
         console.log('F: read step 0');
         await delay(50);
         console.log('F: read step 1');

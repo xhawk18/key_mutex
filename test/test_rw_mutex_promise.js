@@ -1,4 +1,4 @@
-var mutex = require('./index');
+var key_mutex = require('../index');
 
 function delay(ms){
     return new Promise(function(resolve){
@@ -8,9 +8,9 @@ function delay(ms){
 
 function test(){
 
-    var lock = mutex.mutex();
+    var mutex = key_mutex.mutex();
     
-    lock.rlock(function(){
+    mutex.rlock(function(){
         console.log('A: read step 0');
         return delay(50).then(function(){
             console.log('A: read step 1');
@@ -21,7 +21,7 @@ function test(){
         });
     });
 
-    lock.rlock(function(){
+    mutex.rlock(function(){
         console.log('B: read step 0');
         return delay(50).then(function(){
             console.log('B: read step 1');
@@ -32,7 +32,7 @@ function test(){
         });
     });
 
-    lock.wlock(function(){
+    mutex.wlock(function(){
         console.log('C: write step 0');
         return delay(50).then(function(){
             console.log('C: write step 1');
@@ -46,7 +46,7 @@ function test(){
         });
     });
 
-    lock.wlock(function(){
+    mutex.wlock(function(){
         console.log('D: write step 0');
         return delay(50).then(function(){
             console.log('D: write step 1');
@@ -59,7 +59,7 @@ function test(){
 
 
 
-    lock.rlock(function(){
+    mutex.rlock(function(){
         console.log('E: read step 0');
         return delay(50).then(function(){
             console.log('E: read step 1');
@@ -70,7 +70,7 @@ function test(){
         });
     });
 
-    lock.rlock(function(){
+    mutex.rlock(function(){
         console.log('F: read step 0');
         return delay(50).then(function(){
             console.log('F: read step 1');
