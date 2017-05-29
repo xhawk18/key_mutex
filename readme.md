@@ -5,8 +5,15 @@ var key_mutex = require('key_mutex');
 ```
 
 ## Create a mutex
+(This mutex works only in the master worker).
 ```javascript
 var mutex = key_mutex.mutex();
+```
+
+## Create a mutex for cluster.
+This mutex is compatible with cluster, but more slowly than key_mutex.mutex().
+```javascript
+var mutex = key_mutex.cluster_mutex();
 ```
 
 ## Simple lock

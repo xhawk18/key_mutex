@@ -1,13 +1,19 @@
+var cluster = require('cluster');
 var key_mutex = require('./index');
 //var key_mutex = require('key_mutex');
 
-var mutex = key_mutex.mutex();
+var mutex = key_mutex.cluster_mutex();
 
 function delay(ms){
     return new Promise(function(resolve){
         setTimeout(resolve, ms);
     });
 }
+
+function worker_id(){
+    return 'worker ' + (cluster.isMaster ? 0 : cluster.worker.id);
+}
+
 
 /* Example 0 - 
    Two async tasks without mutex locked, will output
@@ -17,15 +23,15 @@ function delay(ms){
     ex0_task_b, step 2, =======
  */
 async function ex0_task_a(){
-    console.log('ex0_task_a, step 1');
+    console.log(`${worker_id()}, ex0_task_a, step 1`);
     await delay(500);
-    console.log('ex0_task_a, step 2, =======');
+    console.log(`${worker_id()}, ex0_task_a, step 2, =======`);
 }
 
 async function ex0_task_b(){
-    console.log('ex0_task_b, step 1');
+    console.log(`${worker_id()}, ex0_task_b, step 1`);
     await delay(500);
-    console.log('ex0_task_b, step 2, =======');
+    console.log(`${worker_id()}, ex0_task_b, step 2, =======`);
 }
 
 async function example0(){
@@ -43,17 +49,17 @@ async function example0(){
  */
 async function ex1_task_a(){
     mutex.lock(async function(){
-        console.log('ex1_task_a, step 1');
+        console.log(`${worker_id()}, ex1_task_a, step 1`);
         await delay(500);
-        console.log('ex1_task_a, step 2, =======');
+        console.log(`${worker_id()}, ex1_task_a, step 2, =======`);
     });
 }
 
 async function ex1_task_b(){
     mutex.lock(async function(){
-        console.log('ex1_task_b, step 1');
+        console.log(`${worker_id()}, ex1_task_b, step 1`);
         await delay(500);
-        console.log('ex1_task_b, step 2, =======');
+        console.log(`${worker_id()}, ex1_task_b, step 2, =======`);
     });
 }
 
@@ -72,11 +78,11 @@ async function example1(){
  */
 async function example2(){
     var ret = await mutex.lock(async function(){
-        console.log('ex2_task, step 1');
+        console.log(`${worker_id()}, ex2_task, step 1`);
         await delay(500);
-        console.log('ex2_task, step 2, =======');
+        console.log(`${worker_id()}, ex2_task, step 2, =======`);
         await delay(500);
-        return 'returns from ex2_task';
+        return `${worker_id()}, returns from ex2_task`;
     });
     console.log(ret);   //output 'returns from ex2_task_a'
 }
@@ -90,12 +96,12 @@ async function example2(){
 async function example3(){
     try{
         var ret = await mutex.lock(async function(){
-            console.log('ex3_task, step 1');
+            console.log(`${worker_id()}, ex3_task, step 1`);
             await delay(500);
             throw new Error('throw my error');
-            console.log('ex3_task, step 2, =======');
+            console.log(`${worker_id()}, ex3_task, step 2, =======`);
             await delay(500);
-            return 'returns from ex3_task';
+            return `${worker_id()}, returns from ex3_task`;
         });
         console.log(ret);
     }catch(err){
@@ -119,17 +125,17 @@ async function example3(){
  */
 async function ex4_task_a(key){
     mutex.lock(key, async function(){
-        console.log(`ex4_task_a, key = ${key}, step 1`);
+        console.log(`${worker_id()}, ex4_task_a, key = ${key}, step 1`);
         await delay(500);
-        console.log(`ex4_task_a, key = ${key}, step 2, =======`);
+        console.log(`${worker_id()}, ex4_task_a, key = ${key}, step 2, =======`);
     });
 }
 
 async function ex4_task_b(key){
     mutex.lock(key, async function(){
-        console.log(`ex4_task_b, key = ${key}, step 1`);
+        console.log(`${worker_id()}, ex4_task_b, key = ${key}, step 1`);
         await delay(500);
-        console.log(`ex4_task_b, key = ${key}, step 2, =======`);
+        console.log(`${worker_id()}, ex4_task_b, key = ${key}, step 2, =======`);
     });
 }
 
@@ -155,25 +161,25 @@ async function example4(){
  */
 async function ex5_task_a(){
     mutex.rlock(async function(){
-        console.log('ex5_task_a, reader step 1');
+        console.log(`${worker_id()}, ex5_task_a, reader step 1`);
         await delay(500);
-        console.log('ex5_task_a, reader step 2, =======');
+        console.log(`${worker_id()}, ex5_task_a, reader step 2, =======`);
     });
 }
 
 async function ex5_task_b(){
     mutex.wlock(async function(){
-        console.log('ex5_task_b, writer step 1');
+        console.log(`${worker_id()}, ex5_task_b, writer step 1`);
         await delay(500);
-        console.log('ex5_task_b, writer step 2, =======');
+        console.log(`${worker_id()}, ex5_task_b, writer step 2, =======`);
     });
 }
 
 async function ex5_task_c(){
     mutex.rlock(async function(){
-        console.log('ex5_task_c, reader step 1');
+        console.log(`${worker_id()}, ex5_task_c, reader step 1`);
         await delay(500);
-        console.log('ex5_task_c, reader step 2, =======');
+        console.log(`${worker_id()}, ex5_task_c, reader step 2, =======`);
     });
 }
 
@@ -197,33 +203,33 @@ async function example5(){
  */
 async function ex6_task_a(key){
     mutex.rlock(key, async function(){
-        console.log(`ex6_task_a, key = ${key}, reader step 1`);
+        console.log(`${worker_id()}, ex6_task_a, key = ${key}, reader step 1`);
         await delay(500);
-        console.log(`ex6_task_a, key = ${key}, reader step 2, =======`);
+        console.log(`${worker_id()}, ex6_task_a, key = ${key}, reader step 2, =======`);
     });
 }
 
 async function ex6_task_b(key){
     mutex.wlock(key, async function(){
-        console.log(`ex6_task_b, key = ${key}, writer step 1`);
+        console.log(`${worker_id()}, ex6_task_b, key = ${key}, writer step 1`);
         await delay(500);
-        console.log(`ex6_task_b, key = ${key}, writer step 2, =======`);
+        console.log(`${worker_id()}, ex6_task_b, key = ${key}, writer step 2, =======`);
     });
 }
 
 async function ex6_task_c(key){
     mutex.rlock(key, async function(){
-        console.log(`ex6_task_c, key = ${key}, reader step 1`);
+        console.log(`${worker_id()}, ex6_task_c, key = ${key}, reader step 1`);
         await delay(500);
-        console.log(`ex6_task_c, key = ${key}, reader step 2, =======`);
+        console.log(`${worker_id()}, ex6_task_c, key = ${key}, reader step 2, =======`);
     });
 }
 
 async function ex6_task_d(key){
     mutex.rlock(key, async function(){
-        console.log(`ex6_task_d, key = ${key}, reader step 1`);
+        console.log(`${worker_id()}, ex6_task_d, key = ${key}, reader step 1`);
         await delay(500);
-        console.log(`ex6_task_d, key = ${key}, reader step 2, =======`);
+        console.log(`${worker_id()}, ex6_task_d, key = ${key}, reader step 2, =======`);
     });
 }
 
@@ -235,33 +241,39 @@ async function example6(){
 }
 
 
-(async function main(){
+if (cluster.isMaster) {
+    console.log(`Master ${process.pid} is running`);
+    cluster.fork();
+    cluster.fork();
+}
+
+(async function main(){  
     console.log('\n=== run example0 ===');
     example0();
-    await delay(2000);
+    await delay(5000);
 
     console.log('\n=== run example1 ===');
     example1();
-    await delay(2000);
+    await delay(5000);
 
     console.log('\n=== run example2 ===');
     example2();
-    await delay(2000);
+    await delay(5000);
 
     console.log('\n=== run example3 ===');
     example3();
-    await delay(2000);
+    await delay(5000);
 
     console.log('\n=== run example4 ===');
     example4();
-    await delay(2000);
+    await delay(5000);
 
     console.log('\n=== run example5 ===');
     example5();
-    await delay(2000);
+    await delay(5000);
 
     console.log('\n=== run example6 ===');
     example6();
-    await delay(2000);
+    await delay(5000);
 })();
 
