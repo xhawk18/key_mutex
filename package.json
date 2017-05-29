@@ -1,6 +1,6 @@
 {
   "name": "key_mutex",
-  "version": "1.0.1",
+  "version": "2.0.1",
   "description": "key-mapped read-write mutex",
   "main": "index.js",
   "scripts": {

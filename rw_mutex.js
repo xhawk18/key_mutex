@@ -49,6 +49,8 @@ function CallbackMutex(){
         wait_write.push(func);
         next();
     }
+
+    thiz.lock = thiz.wlock;
 }
 
 function Mutex() {
@@ -78,6 +80,8 @@ function Mutex() {
     thiz.wlock = function(func) {
         return lock_(func, mutex.wlock);
     }
+
+    thiz.lock = thiz.wlock;
 }
 
 $.callbackMutex = function() {
