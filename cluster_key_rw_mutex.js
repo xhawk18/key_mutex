@@ -5,6 +5,9 @@ var cluster = require('cluster');
 
 var index = 0;
 
+var mutexes = new Map();
+var callback_message_inited = false;
+
 function Master(){
     var thiz = this;
     thiz.type = 1;
@@ -91,40 +94,52 @@ function Master(){
             next2(mutex, key);
     }
     
-    var unlock = function(key){
+    thiz.unlock = function(key){
         var mutex = hasMutex(key);
         if(mutex === undefined) return;
         unlock2(mutex, key);
     }
 
-    cluster.on('online', function(worker){
-        worker.on('message', function(msg) {
-            if(msg.m_index !== thiz.index || msg.m_type !== thiz.type) return;
-            else if(msg.m_cmd === 'next'){
-                unlock(msg.m_key);
-            }
-            else if(msg.m_cmd === 'rlock'){
-                var mutex = getMutex(msg.m_key);
-                mutex.wait_reader.push({worker: worker});
-                next2(mutex, msg.m_key);
-            }
-            else if(msg.m_cmd === 'wlock'){
-                var mutex = getMutex(msg.m_key);
-                mutex.wait_writer.push({worker: worker});
-                next2(mutex, msg.m_key);
-            }
+    if(!callback_message_inited){
+        callback_message_inited = true;
+        cluster.on('online', function(worker){
+            worker.on('message', function(msg) {
+                if(msg.m_type !== thiz.type) return;
+
+                var mutex = mutexes.get(msg.m_index).master;
+                if(mutex === undefined) return;
+                
+                if(msg.m_cmd === 'next')
+                    mutex.unlock(msg.m_key);
+                else if(msg.m_cmd === 'rlock')
+                    mutex.rlock2(msg.m_key, worker);
+                else if(msg.m_cmd === 'wlock')
+                    mutex.wlock2(msg.m_key, worker);
+            });
         });
-    });
+    }
+
+    thiz.wlock2 = function(key, worker){
+        var mutex = getMutex(key);
+        mutex.wait_writer.push({worker: worker});
+        next2(mutex, key);
+    }
+
+    thiz.rlock2 = function(key, worker){
+        var mutex = getMutex(key);
+        mutex.wait_reader.push({worker: worker});
+        next2(mutex, key);
+    }
+
+    thiz.wlock = function(key, func){
+        var mutex = getMutex(key);
+        mutex.wait_writer.push({func: func});
+        next2(mutex, key);
+    }
     
     thiz.rlock = function(key, func){
         var mutex = getMutex(key);
         mutex.wait_reader.push({func: func});
-        next2(mutex, key);
-    }
-    
-    thiz.wlock = function(key, func){
-        var mutex = getMutex(key);
-        mutex.wait_writer.push({func: func});
         next2(mutex, key);
     }
     
@@ -135,8 +150,8 @@ function Master(){
 
 
 function CallbackMutex(){
-    var master = new Master();
     var thiz = this;
+    thiz.master = new Master();
     var wait_writer = new Map();
     var wait_reader = new Map();
     
@@ -157,52 +172,66 @@ function CallbackMutex(){
         return value;
     }
 
-    process.on('message', (msg) => {
-        if(msg.m_index !== master.index || msg.m_type !== master.type) return;
-        else if(msg.m_cmd === 'wunlock'){
-            var values = get_wait_writer(msg.m_key);
-            var op = values.shift();
-            if(values.length === 0)
-                wait_writer.delete(msg.m_key);
-            op(function(){
-                unlock(msg.m_key);
-            });
-        }
-        else if(msg.m_cmd === 'runlock'){
-            var values = get_wait_reader(msg.m_key);
-            var op = values.shift();
-            if(values.length === 0)
-                wait_reader.delete(msg.m_key);
-            op(function(){
-                unlock(msg.m_key);
-            });
-        }
-    });
+    if(!callback_message_inited){
+        callback_message_inited = true;
+
+        process.on('message', (msg) => {
+            if(msg.m_type !== thiz.master.type) return;
+
+            var mutex = mutexes.get(msg.m_index);
+            if(mutex === undefined) return;
+            
+            if(msg.m_cmd === 'wunlock')
+                mutex.on_wunlock(msg.m_key);
+            else if(msg.m_cmd === 'runlock')
+                mutex.on_runlock(msg.m_key);
+        });
+    }
 
     var unlock = function(key) {
         setImmediate(function(){
             if(cluster.isMaster)
-                master.next(key);
+                thiz.master.next(key);
             else
-                process.send({'m_cmd': 'next', 'm_index': master.index, 'm_type': master.type, 'm_key': key});
+                process.send({'m_cmd': 'next', 'm_index': thiz.master.index, 'm_type': thiz.master.type, 'm_key': key});
         });
+    }
+    
+    thiz.on_wunlock = function(key){
+        var values = get_wait_writer(key);
+        var op = values.shift();
+        if(values.length === 0)
+            wait_writer.delete(key);
+        op(function(){
+            unlock(key);
+        });
+    }
+    
+    thiz.on_runlock = function(key){
+        var values = get_wait_reader(key);
+        var op = values.shift();
+        if(values.length === 0)
+            wait_reader.delete(key);
+        op(function(){
+            unlock(key);
+        });
+    }
+
+    thiz.wlock = function(key, func) {
+        if(cluster.isMaster)
+            thiz.master.wlock(key, func);
+        else{
+            get_wait_writer(key).push(func);
+            process.send({'m_cmd': 'wlock', 'm_index': thiz.master.index, 'm_type': thiz.master.type, 'm_key': key});
+        }
     }
 
     thiz.rlock = function(key, func) {
         if(cluster.isMaster)
-            master.rlock(key, func);
+            thiz.master.rlock(key, func);
         else{
             get_wait_reader(key).push(func);
-            process.send({'m_cmd': 'rlock', 'm_index': master.index, 'm_type': master.type, 'm_key': key});
-        }
-    }
-    
-    thiz.wlock = function(key, func) {
-        if(cluster.isMaster)
-            master.wlock(key, func);
-        else{
-            get_wait_writer(key).push(func);
-            process.send({'m_cmd': 'wlock', 'm_index': master.index, 'm_type': master.type, 'm_key': key});
+            process.send({'m_cmd': 'rlock', 'm_index': thiz.master.index, 'm_type': thiz.master.type, 'm_key': key});
         }
     }
 
@@ -210,9 +239,14 @@ function CallbackMutex(){
     
     thiz.size = function() {
         if(cluster.isMaster)
-            return master.size();
+            return thiz.master.size();
         else
             return wait_writer.size + wait_reader.size;
+    }
+
+    mutexes.set(thiz.master.index, thiz);
+    thiz.destroy = function(){
+        mutexes.delete(thiz.master.index);
     }
 }
 
