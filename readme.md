@@ -58,6 +58,11 @@ mutex.wlock(key, async function(){
 });
 ```
 
+## destroy the mutex (for cluster_mutex only)
+```javascript
+mutex.destroy();
+```
+
 # Usage & Examples
 
 key_mutex is a nodejs module that supports key-mapped reader-writer mutex.
