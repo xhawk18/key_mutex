@@ -109,7 +109,7 @@ function Master(index){
 
     if(!callback_message_inited){
         callback_message_inited = true;
-        cluster.on('online', function(worker){
+        cluster.on('fork', function(worker){
             worker.on('message', function(msg) {
                 if(msg.m_type !== thiz.type) return;
 
