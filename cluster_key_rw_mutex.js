@@ -9,11 +9,49 @@ var TYPE = 1;
 var mutexes = new Map();
 var callback_message_inited = false;
 
+
+(function init_msg_handler(){
+    if(callback_message_inited) return;
+    callback_message_inited = true;
+
+    if(cluster.isMaster){
+        cluster.on('fork', function(worker){
+            worker.on('message', function(msg) {
+                if(msg.m_type !== TYPE) return;
+
+                var mutex = mutexes.get(msg.m_index);
+                if(mutex === undefined) return;
+                
+                if(msg.m_cmd === 'next')
+                    mutex.unlock(msg.m_key);
+                else if(msg.m_cmd === 'rlock')
+                    mutex.rlock2(msg.m_key, worker);
+                else if(msg.m_cmd === 'wlock')
+                    mutex.wlock2(msg.m_key, worker);
+            });
+        });
+    }
+    else{
+        process.on('message', function(msg) {
+            if(msg.m_type !== TYPE) return;
+
+            var mutex = mutexes.get(msg.m_index);
+            if(mutex === undefined) return;
+            
+            if(msg.m_cmd === 'wunlock')
+                mutex.on_wunlock(msg.m_key);
+            else if(msg.m_cmd === 'runlock')
+                mutex.on_runlock(msg.m_key);
+        });
+    }
+})();
+
+
 function Master(index){
     var thiz = this;
     thiz.type = TYPE;
     thiz.index = index;
-    
+
     var map = new Map();
 
     //Add myself to mutexes
@@ -107,25 +145,6 @@ function Master(index){
         unlock2(mutex, key);
     }
 
-    if(!callback_message_inited){
-        callback_message_inited = true;
-        cluster.on('fork', function(worker){
-            worker.on('message', function(msg) {
-                if(msg.m_type !== thiz.type) return;
-
-                var mutex = mutexes.get(msg.m_index);
-                if(mutex === undefined) return;
-                
-                if(msg.m_cmd === 'next')
-                    mutex.unlock(msg.m_key);
-                else if(msg.m_cmd === 'rlock')
-                    mutex.rlock2(msg.m_key, worker);
-                else if(msg.m_cmd === 'wlock')
-                    mutex.wlock2(msg.m_key, worker);
-            });
-        });
-    }
-
     thiz.wlock2 = function(key, worker){
         var mutex = getMutex(key);
         mutex.wait_writer.push({worker: worker});
@@ -185,22 +204,6 @@ function CallbackMutex(index){
             wait_reader.set(key, value);
         }
         return value;
-    }
-
-    if(!callback_message_inited){
-        callback_message_inited = true;
-
-        process.on('message', (msg) => {
-            if(msg.m_type !== thiz.type) return;
-
-            var mutex = mutexes.get(msg.m_index);
-            if(mutex === undefined) return;
-            
-            if(msg.m_cmd === 'wunlock')
-                mutex.on_wunlock(msg.m_key);
-            else if(msg.m_cmd === 'runlock')
-                mutex.on_runlock(msg.m_key);
-        });
     }
 
     var unlock = function(key) {

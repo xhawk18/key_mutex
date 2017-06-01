@@ -7,6 +7,44 @@ var TYPE = 0;
 var mutexes = new Map();
 var callback_message_inited = false;
 
+
+(function init_msg_handler(){
+    if(callback_message_inited) return;
+    callback_message_inited = true;
+
+    if(cluster.isMaster){
+        cluster.on('fork', function(worker){
+            worker.on('message', function(msg) {
+                if(msg.m_type !== TYPE) return;
+                
+                var mutex = mutexes.get(msg.m_index);
+                if(mutex === undefined) return;
+            
+                if(msg.m_cmd === 'next')
+                    mutex.unlock();
+                else if(msg.m_cmd === 'rlock')
+                    mutex.rlock2(worker);
+                else if(msg.m_cmd === 'wlock')
+                    mutex.wlock2(worker);
+            });
+        });
+    }
+    else{
+        process.on('message', (msg) => {
+            if(msg.m_type !== TYPE) return;
+
+            var mutex = mutexes.get(msg.m_index);
+            if(mutex === undefined) return;
+
+            if(msg.m_cmd === 'wunlock')
+                mutex.on_wunlock();
+            else if(msg.m_cmd === 'runlock')
+                mutex.on_runlock();
+        });
+    }
+})();
+
+
 function Master(index){
     var thiz = this;
     thiz.type = TYPE;
@@ -62,25 +100,6 @@ function Master(index){
         next();
     }
 
-    if(!callback_message_inited){
-        callback_message_inited = true;
-        cluster.on('fork', function(worker){
-            worker.on('message', function(msg) {
-                if(msg.m_type !== thiz.type) return;
-                
-                var mutex = mutexes.get(msg.m_index);
-                if(mutex === undefined) return;
-            
-                if(msg.m_cmd === 'next')
-                    mutex.unlock();
-                else if(msg.m_cmd === 'rlock')
-                    mutex.rlock2(worker);
-                else if(msg.m_cmd === 'wlock')
-                    mutex.wlock2(worker);
-            });
-        });
-    }
-    
     thiz.wlock2 = function(worker){
         wait_writer.push({worker: worker});
         next();
@@ -118,22 +137,6 @@ function CallbackMutex(index){
     thiz.destroy = function(){
         mutexes.delete(thiz.index);
     }    
-    
-
-    if(!callback_message_inited){
-        callback_message_inited = true;
-        process.on('message', (msg) => {
-            if(msg.m_type !== thiz.type) return;
-
-            var mutex = mutexes.get(msg.m_index);
-            if(mutex === undefined) return;
-
-            if(msg.m_cmd === 'wunlock')
-                mutex.on_wunlock();
-            else if(msg.m_cmd === 'runlock')
-                mutex.on_runlock();
-        });
-    }
 
     var unlock = function() {
         process.send({'m_cmd': 'next', 'm_index': thiz.index, 'm_type': thiz.type});
