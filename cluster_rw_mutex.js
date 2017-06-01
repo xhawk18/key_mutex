@@ -166,9 +166,9 @@ function CallbackMutex(index){
 }
 
 
-function Mutex() {
+function Mutex(name) {
     var thiz = this;
-    var mutex = $.callbackMutex();
+    var mutex = $.callbackMutex(name);
     
     var lock_ = function(func, lock_func) {
         return new Promise(function(resolve, reject){
@@ -201,13 +201,13 @@ function Mutex() {
     }
 }
 
-$.callbackMutex = function() {
-    var new_index = index++;
+$.callbackMutex = function(name) {
+    var new_index = (name === undefined ? index++ : name);
     return (cluster.isMaster ? new Master(new_index) : new CallbackMutex(new_index));
 }
 
-$.mutex = function() {
-    return new Mutex();
+$.mutex = function(name) {
+    return new Mutex(name);
 }
 
 module.exports = $;

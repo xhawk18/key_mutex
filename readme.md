@@ -12,8 +12,9 @@ var mutex = key_mutex.mutex();
 
 ## Create a mutex for cluster.
 This mutex is compatible with cluster, but more slowly than key_mutex.mutex().
+For named mutex, you can specifiy a string name as parameters.
 ```javascript
-var mutex = key_mutex.cluster_mutex();
+var mutex = key_mutex.cluster_mutex([name]);
 ```
 
 ## Simple lock
