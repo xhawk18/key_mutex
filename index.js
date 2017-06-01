@@ -13,12 +13,12 @@ $.simple_mutex = function(){
     return rw_mutex.mutex();
 }
 
-$.cluster_mutex = function(){
-    return cluster_key_rw_mutex.mutex();
+$.cluster_mutex = function(name){
+    return cluster_key_rw_mutex.mutex(name);
 }
 
-$.simple_cluster_mutex = function(){
-    return cluster_rw_mutex.mutex();
+$.simple_cluster_mutex = function(name){
+    return cluster_rw_mutex.mutex(name);
 }
 
 
