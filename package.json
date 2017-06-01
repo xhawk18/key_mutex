@@ -1,6 +1,6 @@
 {
   "name": "key_mutex",
-  "version": "2.1.9",
+  "version": "2.1.20",
   "description": "key-mapped read-write mutex that supports cluster",
   "main": "index.js",
   "scripts": {
