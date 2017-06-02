@@ -2,7 +2,7 @@ var cluster = require('cluster');
 var key_mutex = require('../index');
 //var key_mutex = require('key_mutex');
 
-var mutex = key_mutex.cluster_mutex();
+var mutex = key_mutex.mutex();
 
 var DELAY_MS = 1;
 var CLUSTER_NUM = 10;

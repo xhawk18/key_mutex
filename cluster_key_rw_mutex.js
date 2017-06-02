@@ -1,10 +1,8 @@
 var $ = {};
 
-var cluster_rw_mutex = require('./cluster_rw_mutex');
 var cluster = require('cluster');
 
 var index = 0;
-var TYPE = 1;
 
 var mutexes = new Map();
 var callback_message_inited = false;
@@ -17,8 +15,6 @@ var callback_message_inited = false;
     if(cluster.isMaster){
         cluster.on('fork', function(worker){
             worker.on('message', function(msg) {
-                if(msg.m_type !== TYPE) return;
-
                 var mutex = mutexes.get(msg.m_index);
                 if(mutex === undefined) return;
                 
@@ -33,8 +29,6 @@ var callback_message_inited = false;
     }
     else{
         process.on('message', function(msg) {
-            if(msg.m_type !== TYPE) return;
-
             var mutex = mutexes.get(msg.m_index);
             if(mutex === undefined) return;
             
@@ -49,10 +43,16 @@ var callback_message_inited = false;
 
 function Master(index){
     var thiz = this;
-    thiz.type = TYPE;
     thiz.index = index;
 
     var map = new Map();
+    var mutex_no_key = {
+        ref_count: 0,
+        wait_writer: [],
+        wait_reader: [],
+        status: 0,    //0, no action, 1, reading, 2, writing
+        reading_peers: 0
+    };
 
     //Add myself to mutexes
     mutexes.set(thiz.index, thiz);
@@ -60,29 +60,35 @@ function Master(index){
         mutexes.delete(thiz.index);
     }
 
-    var getMutex = function(key) {
-        var value = map.get(key);
-        //console.log(value);
-        if(value === undefined){
-            value = {
-                ref_count: 1,
-                wait_writer: [],
-                wait_reader: [],
-                status: 0,    //0, no action, 1, reading, 2, writing
-                reading_peers: 0
-            };
-            map.set(key, value);
+    var obtainKey = function(key) {
+        var value;
+        if(key === undefined)
+            value = mutex_no_key;
+        else{
+            value = map.get(key);
+            //console.log(value);
+            if(value === undefined){
+                value = {
+                    ref_count: 0,
+                    wait_writer: [],
+                    wait_reader: [],
+                    status: 0,    //0, no action, 1, reading, 2, writing
+                    reading_peers: 0
+                };
+                map.set(key, value);
+            }
         }
-        else
-            value.ref_count++;
+
+        value.ref_count++;
         return value;
     }
-    var putMutex = function(key, value) {
+    var releaseKey = function(key, value) {
         value.ref_count--;
-        if(value.ref_count == 0)
+        if(value.ref_count == 0 && key !== undefined)
             map.delete(key);
     }
-    var hasMutex = function(key){
+    var getKey = function(key){
+        if(key === undefined) return mutex_no_key;
         return map.get(key);
     }
 
@@ -117,7 +123,7 @@ function Master(index){
     }
     
     var next = function(key) {
-        var mutex = hasMutex(key);
+        var mutex = getKey(key);
         if(mutex === undefined) return;
         next2(mutex, key);
     }
@@ -134,37 +140,37 @@ function Master(index){
             }
         }
         var ref_count = mutex.ref_count;
-        putMutex(key, mutex);
+        releaseKey(key, mutex);
         if(ref_count > 1)
             next2(mutex, key);
     }
     
     thiz.unlock = function(key){
-        var mutex = hasMutex(key);
+        var mutex = getKey(key);
         if(mutex === undefined) return;
         unlock2(mutex, key);
     }
 
     thiz.wlock2 = function(key, worker){
-        var mutex = getMutex(key);
+        var mutex = obtainKey(key);
         mutex.wait_writer.push({worker: worker});
         next2(mutex, key);
     }
 
     thiz.rlock2 = function(key, worker){
-        var mutex = getMutex(key);
+        var mutex = obtainKey(key);
         mutex.wait_reader.push({worker: worker});
         next2(mutex, key);
     }
 
     thiz.wlock = function(key, func){
-        var mutex = getMutex(key);
+        var mutex = obtainKey(key);
         mutex.wait_writer.push({func: func});
         next2(mutex, key);
     }
     
     thiz.rlock = function(key, func){
-        var mutex = getMutex(key);
+        var mutex = obtainKey(key);
         mutex.wait_reader.push({func: func});
         next2(mutex, key);
     }
@@ -177,11 +183,12 @@ function Master(index){
 
 function CallbackMutex(index){
     var thiz = this;
-    thiz.type = TYPE;
     thiz.index = index;
 
     var wait_writer = new Map();
     var wait_reader = new Map();
+    var wait_writer_no_key = [];
+    var wait_reader_no_key = [];
 
     //Add myself to mutexes
     mutexes.set(thiz.index, thiz);
@@ -190,6 +197,7 @@ function CallbackMutex(index){
     }
 
     function get_wait_writer(key){
+        if(key === undefined) return wait_writer_no_key;
         var value = wait_writer.get(key);
         if(value === undefined){
             value = [];
@@ -198,6 +206,7 @@ function CallbackMutex(index){
         return value;
     }
     function get_wait_reader(key){
+        if(key === undefined) return wait_reader_no_key;
         var value = wait_reader.get(key);
         if(value === undefined){
             value = [];
@@ -251,7 +260,6 @@ function CallbackMutex(index){
 function Mutex(name) {
     var thiz = this;
     var mutex = $.callbackMutex(name);
-    var simple_mutex = cluster_rw_mutex.mutex();
     
     var lock_ = function(key, func, lock_func) {
         return new Promise(function(resolve, reject){
@@ -272,7 +280,7 @@ function Mutex(name) {
     thiz.rlock = function(key, func) {
         if(func === undefined){
             func = key;
-            return simple_mutex.rlock(func);
+            key = undefined;
         }
 
         return lock_(key, func, mutex.rlock);
@@ -281,7 +289,7 @@ function Mutex(name) {
     thiz.wlock = function(key, func) {
         if(func === undefined){
             func = key;
-            return simple_mutex.wlock(func);
+            key = undefined;
         }
 
         return lock_(key, func, mutex.wlock);
@@ -294,7 +302,6 @@ function Mutex(name) {
     }
     
     thiz.destroy = function(){
-        simple_mutex.destroy();
         return mutex.destroy();
     }
 }

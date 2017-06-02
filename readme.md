@@ -1,12 +1,15 @@
 
 # Usage & Examples
 
-key_mutex is a nodejs module that supports key-mapped reader-writer mutex.
+key_mutex is a mutex module that supports -
+* reader-writer mutex
+* lock on a named key
+* nodejs cluster
 
 ## Example 1 - simple mutex
 ```javascript
 var key_mutex = require('key_mutex');
-var mutex = key_mutex.cluster_mutex();
+var mutex = key_mutex.mutex();
 
 function delay(ms){
     return new Promise(function(resolve){
@@ -234,16 +237,15 @@ var key_mutex = require('key_mutex');
 ```
 
 ## Create a mutex
-(This mutex works only in the master worker).
 ```javascript
 var mutex = key_mutex.mutex();
 ```
 
-## Create a mutex for cluster.
-This mutex is compatible with cluster, but more slowly than key_mutex.mutex().
-For named mutex, you can specifiy a string name as parameters.
+## Create a named mutex
+For named mutex, you can specifiy a string name as parameters,
+which is useful in cluster mode if the mutex is created after cluster forked.
 ```javascript
-var mutex = key_mutex.cluster_mutex([name]);
+var mutex = key_mutex.mutex([name]);
 ```
 
 ## Simple lock
@@ -288,7 +290,7 @@ mutex.wlock(key, async function(){
 });
 ```
 
-## destroy the mutex (for cluster_mutex only)
+## destroy the mutex (for cluster mode only)
 ```javascript
 mutex.destroy();
 ```
