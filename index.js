@@ -9,4 +9,6 @@ $.mutex = function(name){
     return cluster_key_rw_mutex.mutex(name);
 }
 
+$.cluster_mutex = $.mutex;  //for compatibility
+
 module.exports = $;
