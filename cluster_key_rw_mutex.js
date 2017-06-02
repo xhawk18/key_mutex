@@ -18,12 +18,12 @@ var callback_message_inited = false;
                 var mutex = mutexes.get(msg.m_index);
                 if(mutex === undefined) return;
                 
-                if(msg.m_cmd === 'next')
+                if(msg.m_cmd === 'unlock')
                     mutex.unlock(msg.m_key);
-                else if(msg.m_cmd === 'rlock')
-                    mutex.rlock2(msg.m_key, worker);
                 else if(msg.m_cmd === 'wlock')
                     mutex.wlock2(msg.m_key, worker);
+                else if(msg.m_cmd === 'rlock')
+                    mutex.rlock2(msg.m_key, worker);
             });
         });
     }
@@ -32,10 +32,10 @@ var callback_message_inited = false;
             var mutex = mutexes.get(msg.m_index);
             if(mutex === undefined) return;
             
-            if(msg.m_cmd === 'wunlock')
-                mutex.on_wunlock(msg.m_key);
-            else if(msg.m_cmd === 'runlock')
-                mutex.on_runlock(msg.m_key);
+            if(msg.m_cmd === 'wlock')
+                mutex.on_wlock(msg.m_key);
+            else if(msg.m_cmd === 'rlock')
+                mutex.on_rlock(msg.m_key);
         });
     }
 })();
@@ -100,7 +100,7 @@ function Master(index){
                 var op = mutex.wait_writer.shift();
                 mutex.status = 2;
                 if(op.worker !== undefined)
-                    op.worker.send({'m_cmd': 'wunlock', 'm_index': thiz.index, 'm_type': thiz.type, 'm_key': key});
+                    op.worker.send({'m_cmd': 'wlock', 'm_index': thiz.index, 'm_type': thiz.type, 'm_key': key});
                 else
                     op.func(function(){
                         unlock2(mutex, key);
@@ -113,7 +113,7 @@ function Master(index){
                 mutex.status = 1;
                 mutex.reading_peers++;
                 if(op.worker !== undefined)
-                    op.worker.send({'m_cmd': 'runlock', 'm_index': thiz.index, 'm_type': thiz.type, 'm_key': key});
+                    op.worker.send({'m_cmd': 'rlock', 'm_index': thiz.index, 'm_type': thiz.type, 'm_key': key});
                 else
                     op.func(function(){
                         unlock2(mutex, key);
@@ -216,10 +216,10 @@ function CallbackMutex(index){
     }
 
     var unlock = function(key) {
-        process.send({'m_cmd': 'next', 'm_index': thiz.index, 'm_type': thiz.type, 'm_key': key});
+        process.send({'m_cmd': 'unlock', 'm_index': thiz.index, 'm_type': thiz.type, 'm_key': key});
     }
     
-    thiz.on_wunlock = function(key){
+    thiz.on_wlock = function(key){
         var values = get_wait_writer(key);
         var op = values.shift();
         if(values.length === 0)
@@ -229,7 +229,7 @@ function CallbackMutex(index){
         });
     }
     
-    thiz.on_runlock = function(key){
+    thiz.on_rlock = function(key){
         var values = get_wait_reader(key);
         var op = values.shift();
         if(values.length === 0)

@@ -243,7 +243,7 @@ var mutex = key_mutex.mutex();
 
 ## Create a named mutex
 For named mutex, you can specifiy a string name as parameters,
-which is useful in cluster mode if the mutex is created after cluster forked.
+which is useful if the mutex is created after cluster forked.
 ```javascript
 var mutex = key_mutex.mutex([name]);
 ```
