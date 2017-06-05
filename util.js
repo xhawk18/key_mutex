@@ -1,4 +1,6 @@
 var $ = {};
+module.exports = $;
+
 
 $.defer_list = function(){
     var thiz = this;
@@ -31,4 +33,3 @@ $.hrtime = function(time){
 
 
 
-module.exports = $;

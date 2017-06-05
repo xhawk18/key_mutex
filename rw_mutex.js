@@ -1,4 +1,6 @@
 var $ = {};
+module.exports = $;
+
 
 function CallbackMutex(){
     var thiz = this;
@@ -93,5 +95,4 @@ $.mutex = function() {
 }
 
 
-module.exports = $;
 

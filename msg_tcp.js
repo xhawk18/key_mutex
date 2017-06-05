@@ -1,14 +1,17 @@
+var $ = {};
+module.exports = $;
+
+
 var cluster = require('cluster');
 var net = require('net');
 var util = require('./util');
 var msg_process = require('./msg_process');
 
-var $ = {};
 
 var handlers = new Map();
 var clients = new Map();
 
-function Client(host){
+function Client(host, timeout_ms){
     var thiz = this;
     thiz.mutexes = new Map();
 
@@ -24,7 +27,7 @@ function Client(host){
     }
 
     thiz.on_message = function(msg){
-        var mutex = mutexes.get(msg.m_name);
+        var mutex = thiz.mutexes.get(msg.m_name);
         if(mutex === undefined) return;
 
         if(msg.m_cmd === 'wlock')
@@ -35,18 +38,23 @@ function Client(host){
     
     thiz.send = function(msg){
         var str = JSON.stringify(msg);
-        return connect_server(thiz, host, -1).then(function(connection){
-            return connection.send(str);
+        return connect_server(thiz, host, timeout_ms).then(function(connection){
+            return connection.send(timeout_ms, str);
         });
     }
 }
 
-$.get = function(host){
+$.get = function(host, timeout_ms){
     var client = clients.get(host);
     if(client === undefined){
-        client = new Client(host);
+        client = new Client(host, timeout_ms);
         clients.set(host, client);
     }
+    else{
+        if(timeout_ms === undefined) client.timeout_ms = undefined;
+        else if(client.timeout_ms !== undefined && client.timeout_ms < timeout_ms)
+            client.timeout_ms = timeout_ms;
+    } 
     return client;
 }
 
@@ -67,7 +75,7 @@ function check_sum(buf, start, end){
     return checksum;
 }
 
-function send_socket_data(socket, str){
+function send_socket_data(timeout_ms, socket, str){
     var buf = Buffer.from(str, 'utf8');
     var header = Buffer.allocUnsafe(3);
     header[0] = 0xAA;
@@ -114,7 +122,7 @@ function parse_socket_data(handler, buf, on_message){
     return buf;
 }
 
-function server_read_sock(socket){
+function server_on_create_sock(socket, timeout_ms){
     var handler = {};
     handler.closed = false;
 
@@ -128,7 +136,6 @@ function server_read_sock(socket){
     socket.on('close', close_sock);
     
     var buf = Buffer.allocUnsafe(0);
-    
     socket.on('data', function (data){
         buf = Buffer.concat([buf, data]);
         buf = parse_socket_data(handler, buf, function(msg){
@@ -137,12 +144,13 @@ function server_read_sock(socket){
     });
     
     handler.send = function(msg){
+        //console.log(timeout_ms, typeof msg, msg);
         var str = JSON.stringify(msg);
-        send_socket_data(socket, str);
+        send_socket_data(timeout_ms, socket, str);
     }
 }
 
-function connect_server_once(client, host){
+function connect_server_once(client, host, timeout_ms){
     return new Promise(function(resolve, reject){
         var handler = handlers.get(host);
         if(handler !== undefined){
@@ -152,12 +160,13 @@ function connect_server_once(client, host){
         }
 
         var handler = {};
-        handler.defer_list = util.defer_list();
+        handler.defer_list = new util.defer_list();
         handler.defer_list.add(resolve, reject);
         handlers.set(host, handler);
 
         var connect_args = {};
         var a = host.split(':');
+
         if(a.length !== 2){
             handler.defer_list.reject('invalid host address');
             return;
@@ -172,7 +181,7 @@ function connect_server_once(client, host){
         var socket = net.connect(connect_args, function(){
             handler.connected = true;
             handler.defer_list.resolve(handler);
-            //log.debug('server connected');
+            //console.log('server connected');
             //send_socket_data(handler, "12345678");
         });
         
@@ -194,8 +203,9 @@ function connect_server_once(client, host){
             });
         });
         
-        thiz.send = function(str){
-            socket.write(str);
+        handler.send = function(timeout_ms, str){
+            //console.log(typeof str, str);
+            send_socket_data(timeout_ms, socket, str);
         }
 
         socket.on('end', close_sock);
@@ -209,7 +219,7 @@ function connect_server(client, host, timeout_ms){
 
     return new Promise(function(resolve, reject){
         (function connect(){
-            connect_server_once(client, host).then(function(handler){
+            connect_server_once(client, host, timeout_ms).then(function(handler){
                 resolve(handler);
             }, function(){
                 var diff_ms = util.hrtime(start);
@@ -218,7 +228,7 @@ function connect_server(client, host, timeout_ms){
                     setTimeout(connect, 500);
                 }
             });
-        });
+        })();
     });
 }
 
@@ -227,9 +237,12 @@ function disconnect_server(host){
     handler.socket.close();
 }
 
-$.listen_server = function(port){
+$.listen_server = function(port, timeout_ms){
     return new Promise(function(resolve, reject){
-        var server = net.createServer(server_read_sock);
+        var server = net.createServer(function(socket){
+            server_on_create_sock(socket, timeout_ms);
+        });
+
         server.on('error', function(err){
             reject(err);
         });
@@ -240,4 +253,3 @@ $.listen_server = function(port){
     });
 }
 
-module.exports = $;

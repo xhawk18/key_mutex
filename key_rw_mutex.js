@@ -1,7 +1,7 @@
-var rw_mutex = require('./rw_mutex');
-
 var $ = {};
+module.exports = $;
 
+var rw_mutex = require('./rw_mutex');
 
 function Mutex(){
     var thiz = this;
@@ -166,4 +166,3 @@ $.mutex = function() {
     return new Mutex();
 }
 
-module.exports = $;

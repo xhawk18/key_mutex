@@ -1,4 +1,5 @@
 var $ = {};
+module.exports = $;
 
 var cluster = require('cluster');
 
@@ -315,5 +316,3 @@ $.callbackMutex = function(name) {
 $.mutex = function(name) {
     return new Mutex(name);
 }
-
-module.exports = $;

@@ -1,4 +1,5 @@
 var $ = {};
+module.exports = $;
 
 var cluster = require('cluster');
 var msg_tcp = require('./msg_tcp');
@@ -6,11 +7,13 @@ var msg_process = require('./msg_process');
 
 var index = 0;
 
-function MasterMutex(name, messager){
+$.MasterMutex = function(name, messager){
     var thiz = this;
     thiz.name = name;
 
+    //handler for keys
     var map = new Map();
+    //handler for undefined key
     var mutex_no_key = {
         ref_count: 0,
         wait_writer: [],
@@ -157,12 +160,14 @@ function MasterMutex(name, messager){
 }
 
 
-function SlaveMutex(name, messager){
+function SlaveMutex(name, messager, timeout_ms){
     var thiz = this;
     thiz.name = name;
 
+    //waiter for keys
     var wait_writer = new Map();
     var wait_reader = new Map();
+    //waiter for undefined key
     var wait_writer_no_key = [];
     var wait_reader_no_key = [];
 
@@ -212,32 +217,48 @@ function SlaveMutex(name, messager){
     }
 
     thiz.wlock = function(key, func) {
+        var timer = undefined;
         return new Promise(function(resolve, reject){
+            if(timeout_ms !== undefined)
+                timer = setTimeout(function(){
+                    timer = undefined;
+                    reject(new Error('timeout'));
+                }, timeout_ms);
+
             get_wait_writer(key).push({resolve: resolve, reject: reject});
             return messager.send({'m_cmd': 'wlock', 'm_name': thiz.name, 'm_type': thiz.type, 'm_key': key});
         }).then(function(){
-            return func();
-        }).then(function(ret){
-            unlock(key);
-            return ret;
-        }, function(err){
-            unlock(key);
-            throw err;
+            if(timer !== undefined) clearTimeout(timer);
+            return func().then(function(ret){
+                unlock(key);
+                return ret;
+            }, function(err){
+                unlock(key);
+                throw err;
+            });
         });
     }
 
     thiz.rlock = function(key, func) {
+        var timer = undefined;
         return new Promise(function(resolve, reject){
+            if(timeout_ms !== undefined)
+                timer = setTimeout(function(){
+                    timer = undefined;
+                    reject(new Error('timeout'));
+                }, timeout_ms);
+
             get_wait_reader(key).push({resolve: resolve, reject: reject});
             return messager.send({'m_cmd': 'rlock', 'm_name': thiz.name, 'm_type': thiz.type, 'm_key': key});
         }).then(function(){
-            return func(); 
-        }).then(function(ret){
-            unlock(key);
-            return ret;
-        }, function(err){
-            unlock(key);
-            throw err;
+            if(timer !== undefined) clearTimeout(timer);
+            return func().then(function(ret){
+                unlock(key);
+                return ret;
+            }, function(err){
+                unlock(key);
+                throw err;
+            });
         });
     }
 
@@ -249,7 +270,7 @@ function SlaveMutex(name, messager){
 }
 
 
-function Mutex(name, host) {
+function Mutex(name, host, timeout_ms) {
     var thiz = this;
     
     function createMutex(name, host) {
@@ -257,11 +278,11 @@ function Mutex(name, host) {
             var new_name = (name === undefined ? index++ : name);
             var messager = msg_process.get();
             return (cluster.isMaster
-                ? new MasterMutex(new_name, messager)
-                : new SlaveMutex(new_name, messager));
+                ? new $.MasterMutex(new_name, messager, timeout_ms)
+                : new SlaveMutex(new_name, messager, timeout_ms));
         }
         else{
-            return new SlaveMutex(name, msg_tcp.get(host));
+            return new SlaveMutex(name, msg_tcp.get(host, timeout_ms), timeout_ms);
         }
     }
 
@@ -296,12 +317,11 @@ function Mutex(name, host) {
     }
 }
 
-$.mutex = function(name, host) {
-    return new Mutex(name, host);
+$.mutex = function(name, host, timeout_ms) {
+    return new Mutex(name, host, timeout_ms);
 }
 
-$.server = function(port){
-    return msg_tcp.listen_server(port);
+$.server = function(port, timeout_ms){
+    return msg_tcp.listen_server(port, timeout_ms);
 }
 
-module.exports = $;

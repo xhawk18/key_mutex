@@ -1,14 +1,24 @@
+var $ = {};
+module.exports = $;
+
+
 var cluster = require('cluster');
 var util = require('./util');
+var msg_key_rw_mutex = require('./msg_key_rw_mutex');
 
-var $ = {};
 
 var mutexes = new Map();
 var callback_message_inited = false;
 
 $.on_message = function(msg, client){
     var mutex = mutexes.get(msg.m_name);
-    if(mutex === undefined) return;
+    if(mutex === undefined){
+        new msg_key_rw_mutex.MasterMutex(msg.m_name, $);
+        var mutex = mutexes.get(msg.m_name);
+        if(mutex === undefined)
+            return;
+    }
+    
 
     if(msg.m_cmd === 'unlock')
         mutex.unlock_worker(msg.m_key);
@@ -63,4 +73,3 @@ $.del = function(name){
     mutexes.delete(name);
 }
 
-module.exports = $;

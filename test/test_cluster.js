@@ -2,11 +2,20 @@ var cluster = require('cluster');
 var key_mutex = require('../index');
 //var key_mutex = require('key_mutex');
 
-var mutex = key_mutex.mutex();
+if(cluster.isMaster){
+    //var mutex = key_mutex.mutex();
+    key_mutex.server(9994, 5000);
+}
+else{
+    if(Math.random() < 0.5)
+        var mutex = key_mutex.mutex("abcd", "127.0.0.1:9994", 3000);
+    else
+        var mutex = key_mutex.mutex("abcd");
+}
 
 var DELAY_MS = 1;
-var CLUSTER_NUM = 10;
-var TASKS_PER_PROCESS = 100;
+var CLUSTER_NUM = 3;
+var TASKS_PER_PROCESS = 1000;
 
 function delay(ms){
     return new Promise(function(resolve){
@@ -24,7 +33,7 @@ function worker_id(){
 var ex1_call_count = 0;
 
 async function ex1_task_a(){
-    return mutex.rlock(async function(){
+    return await mutex.rlock(async function(){
         ++ex1_call_count;
         var value = await get_value();
         value.a += 1;
@@ -45,7 +54,7 @@ async function ex1_task_a(){
 }
 
 async function ex1_task_b(){
-    return mutex.wlock(async function(){
+    return await mutex.wlock(async function(){
         ++ex1_call_count;
         var value = await get_value();
         value.c = -Math.min(value.a, value.b);
@@ -83,7 +92,7 @@ async function test1(){
 var ex2_call_count = 0;
 
 async function ex2_task_a(key){
-    return mutex.rlock(key, async function(){
+    return await mutex.rlock(key, async function(){
         ++ex2_call_count;
         var value = await get_value(key);
         value.a += 2;
@@ -104,7 +113,7 @@ async function ex2_task_a(key){
 }
 
 async function ex2_task_b(key){
-    return mutex.wlock(key, async function(){
+    return await mutex.wlock(key, async function(){
         ++ex2_call_count;
         var value = await get_value(key);
         value.c = -Math.min(value.a, value.b);
@@ -205,7 +214,7 @@ if (cluster.isMaster) {
         })
     }
 
-    main();
+    //main();
 }
 else{
     var waits = new Map();
@@ -252,5 +261,7 @@ async function main(){
             break;
         }
     }
+    console.log('process exit');
 }
+
 
