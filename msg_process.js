@@ -21,19 +21,27 @@ $.on_message = function(msg, client){
     
 
     if(msg.m_cmd === 'unlock')
-        mutex.unlock_worker(msg.m_key);
+        mutex.unlock_worker(msg.m_key, client);
     else if(msg.m_cmd === 'wlock')
         mutex.wlock_worker(msg.m_key, client);
     else if(msg.m_cmd === 'rlock')
         mutex.rlock_worker(msg.m_key, client);
 }
 
+$.force_unlock = function(client, name, key){
+    console.log('force_unlock', name, key);
+    var mutex = mutexes.get(name);
+    if(mutex === undefined)
+        return;
+    mutex.unlock_worker(key, client); 
+}
+
 $.send = function(msg){
     process.send(msg);
 }
 
-$.send_client = function(client, msg){
-    client.send(msg);
+$.lock_client = function(client, serial, msg){
+    return client.lock(serial, msg);
 }
 
 
@@ -43,8 +51,13 @@ $.send_client = function(client, msg){
 
     if(cluster.isMaster){
         cluster.on('fork', function(worker){
+            var client = {
+                lock: function(serial, msg){
+                    worker.send(msg);
+                }
+            };
             worker.on('message', function(msg) {
-                $.on_message(msg, worker);
+                $.on_message(msg, client);
             });
         });
     }

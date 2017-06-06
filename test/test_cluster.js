@@ -3,19 +3,19 @@ var key_mutex = require('../index');
 //var key_mutex = require('key_mutex');
 
 if(cluster.isMaster){
-    //var mutex = key_mutex.mutex();
-    key_mutex.server(9994, 5000);
+    var mutex = key_mutex.mutex("abcd");
+    key_mutex.server(9994);//, 5000);
 }
 else{
-    if(Math.random() < 0.5)
-        var mutex = key_mutex.mutex("abcd", "127.0.0.1:9994", 3000);
-    else
-        var mutex = key_mutex.mutex("abcd");
+   // if(Math.random() < 0.5)
+        var mutex = key_mutex.mutex("abcd", "127.0.0.1:9994");//, 3000);
+   // else
+   //     var mutex = key_mutex.mutex("abcd");
 }
 
-var DELAY_MS = 1;
-var CLUSTER_NUM = 3;
-var TASKS_PER_PROCESS = 1000;
+var DELAY_MS = 150;
+var CLUSTER_NUM = 10;
+var TASKS_PER_PROCESS = 3;
 
 function delay(ms){
     return new Promise(function(resolve){
@@ -34,6 +34,7 @@ var ex1_call_count = 0;
 
 async function ex1_task_a(){
     return await mutex.rlock(async function(){
+        //console.log(`${worker_id()}, ex1_task_a, reader step 0`);
         ++ex1_call_count;
         var value = await get_value();
         value.a += 1;
@@ -42,10 +43,13 @@ async function ex1_task_a(){
         var c = value.c;
         //console.log(`${worker_id()}, ex1_task_a, reader step 1`);
         await delay(DELAY_MS);
-        //console.log(`${worker_id()}, ex1_task_a, reader step 2, =======`);
+        //console.log(`${worker_id()}, ex1_task_a, reader step 2`);
         await set_value(value);
+        //console.log(`${worker_id()}, ex1_task_a, reader step 3`);
         await delay(DELAY_MS);
+        //console.log(`${worker_id()}, ex1_task_a, reader step 4`);
         var value = await get_value();
+        //console.log(`${worker_id()}, ex1_task_a, reader step 5, =======`);
         if(value.c < 0){
             console.log(`ex1_task_a, c = ${c}, value.c = ${value.c}`);
             throw new Error('ex1_task_a test failed');
@@ -55,16 +59,20 @@ async function ex1_task_a(){
 
 async function ex1_task_b(){
     return await mutex.wlock(async function(){
+        //console.log(`${worker_id()}, ex1_task_b, writer step 0`);
         ++ex1_call_count;
         var value = await get_value();
         value.c = -Math.min(value.a, value.b);
         var c = value.c;
         //console.log(`${worker_id()}, ex1_task_b, writer step 1`);
         await delay(DELAY_MS);
-        //console.log(`${worker_id()}, ex1_task_b, writer step 2, =======`);
+        //console.log(`${worker_id()}, ex1_task_b, writer step 2`);
         await set_value(value);
+        //console.log(`${worker_id()}, ex1_task_b, writer step 3`);
         await delay(DELAY_MS);
+        //console.log(`${worker_id()}, ex1_task_b, writer step 4`);
         var value = await get_value();
+        //console.log(`${worker_id()}, ex1_task_b, writer step 5, =======`);
         if(c !== value.c){
             console.log(`ex1_task_b, c = ${c}, value.c = ${value.c}`);
             throw new Error('ex1_task_b test failed');

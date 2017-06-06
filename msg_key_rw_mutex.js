@@ -5,7 +5,8 @@ var cluster = require('cluster');
 var msg_tcp = require('./msg_tcp');
 var msg_process = require('./msg_process');
 
-var index = 0;
+var unique_name = 0;
+var unique_serial = 0;
 
 $.MasterMutex = function(name, messager){
     var thiz = this;
@@ -96,29 +97,34 @@ $.MasterMutex = function(name, messager){
             next(mutex, key);
     }
     
-    thiz.unlock_worker = function(key){
+    thiz.unlock_worker = function(key, worker){
         var mutex = getKey(key);
         if(mutex === undefined) return;
+console.log('unlock', thiz.name, key);
         unlock(mutex, key);
     }
 
     thiz.wlock_worker = function(key, worker){
+console.log('wlock', thiz.name, key);
         var mutex = obtainKey(key);
+        var serial = unique_serial++;
         return new Promise(function(resolve, reject){
             mutex.wait_writer.push({resolve: resolve, reject: reject});
             next(mutex, key);
         }).then(function(){
-            return messager.send_client(worker, {'m_cmd': 'wlock', 'm_name': thiz.name, 'm_type': thiz.type, 'm_key': key});
+            return messager.lock_client(worker, serial, {'m_cmd': 'wlock', 'm_name': thiz.name, 'm_serial': serial, 'm_key': key});
         });
     }
 
     thiz.rlock_worker = function(key, worker){
+console.log('rlock', thiz.name, key);
         var mutex = obtainKey(key);
+        var serial = unique_serial++;
         return new Promise(function(resolve, reject){
             mutex.wait_reader.push({resolve: resolve, reject: reject});
             next(mutex, key);
         }).then(function(){
-            return messager.send_client(worker, {'m_cmd': 'rlock', 'm_name': thiz.name, 'm_type': thiz.type, 'm_key': key});
+            return messager.lock_client(worker, serial, {'m_cmd': 'rlock', 'm_name': thiz.name, 'm_serial': serial, 'm_key': key});
         });
     }
 
@@ -196,24 +202,24 @@ function SlaveMutex(name, messager, timeout_ms){
         return value;
     }
 
-    var unlock = function(key) {
-        return messager.send({'m_cmd': 'unlock', 'm_name': thiz.name, 'm_type': thiz.type, 'm_key': key});
+    var unlock = function(key, serial) {
+        return messager.send({'m_cmd': 'unlock', 'm_name': thiz.name, 'm_serial': serial, 'm_key': key});
     }
     
-    thiz.on_wlock = function(key){
+    thiz.on_wlock = function(key, serial){
         var values = get_wait_writer(key);
         var op = values.shift();
         if(values.length === 0)
             wait_writer.delete(key);
-        op.resolve();
+        op.resolve(serial);
     }
     
-    thiz.on_rlock = function(key){
+    thiz.on_rlock = function(key, serial){
         var values = get_wait_reader(key);
         var op = values.shift();
         if(values.length === 0)
             wait_reader.delete(key);
-        op.resolve();
+        op.resolve(serial);
     }
 
     thiz.wlock = function(key, func) {
@@ -226,14 +232,14 @@ function SlaveMutex(name, messager, timeout_ms){
                 }, timeout_ms);
 
             get_wait_writer(key).push({resolve: resolve, reject: reject});
-            return messager.send({'m_cmd': 'wlock', 'm_name': thiz.name, 'm_type': thiz.type, 'm_key': key});
-        }).then(function(){
+            return messager.send({'m_cmd': 'wlock', 'm_name': thiz.name, 'm_key': key});
+        }).then(function(serial){
             if(timer !== undefined) clearTimeout(timer);
             return func().then(function(ret){
-                unlock(key);
+                unlock(key, serial);
                 return ret;
             }, function(err){
-                unlock(key);
+                unlock(key, serial);
                 throw err;
             });
         });
@@ -249,14 +255,14 @@ function SlaveMutex(name, messager, timeout_ms){
                 }, timeout_ms);
 
             get_wait_reader(key).push({resolve: resolve, reject: reject});
-            return messager.send({'m_cmd': 'rlock', 'm_name': thiz.name, 'm_type': thiz.type, 'm_key': key});
-        }).then(function(){
+            return messager.send({'m_cmd': 'rlock', 'm_name': thiz.name, 'm_key': key});
+        }).then(function(serial){
             if(timer !== undefined) clearTimeout(timer);
             return func().then(function(ret){
-                unlock(key);
+                unlock(key, serial);
                 return ret;
             }, function(err){
-                unlock(key);
+                unlock(key, serial);
                 throw err;
             });
         });
@@ -275,7 +281,7 @@ function Mutex(name, host, timeout_ms) {
     
     function createMutex(name, host) {
         if(host === undefined){
-            var new_name = (name === undefined ? index++ : name);
+            var new_name = (name === undefined ? unique_name++ : name);
             var messager = msg_process.get();
             return (cluster.isMaster
                 ? new $.MasterMutex(new_name, messager, timeout_ms)

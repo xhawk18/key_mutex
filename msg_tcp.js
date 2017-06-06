@@ -31,9 +31,9 @@ function Client(host, timeout_ms){
         if(mutex === undefined) return;
 
         if(msg.m_cmd === 'wlock')
-            mutex.on_wlock(msg.m_key);
+            mutex.on_wlock(msg.m_key, msg.m_serial);
         else if(msg.m_cmd === 'rlock')
-            mutex.on_rlock(msg.m_key);
+            mutex.on_rlock(msg.m_key, msg.m_serial);
     }
     
     thiz.send = function(msg){
@@ -123,12 +123,15 @@ function parse_socket_data(handler, buf, on_message){
 }
 
 function server_on_create_sock(socket, timeout_ms){
+    var Null = {};
     var handler = {};
     handler.closed = false;
+    handler.pendings = new Map();
 
     function close_sock(){
         if(handler.closed) return;
         handler.closed = true;
+        handler.force_unlock();
     }
 
     socket.on('error', close_sock);
@@ -137,16 +140,77 @@ function server_on_create_sock(socket, timeout_ms){
     
     var buf = Buffer.allocUnsafe(0);
     socket.on('data', function (data){
+        if(handler.closed) return;
         buf = Buffer.concat([buf, data]);
         buf = parse_socket_data(handler, buf, function(msg){
+            if(msg.m_cmd === 'unlock')
+                handler.del(msg.m_name, msg.m_key);
             msg_process.on_message(msg, handler);
         });
     });
     
-    handler.send = function(msg){
+    handler.lock = function(serial, msg){
+        if(handler.closed) {throw new Error('closed');}
+        //console.log(serial);
+       
         //console.log(timeout_ms, typeof msg, msg);
+        handler.add(msg.m_name, msg.m_key);
         var str = JSON.stringify(msg);
         send_socket_data(timeout_ms, socket, str);
+    }
+
+    handler.force_unlock = function(){
+        var pendings = handler.pendings;
+        handler.pendings = new Map();
+console.log(pendings);
+        pendings.forEach(function(keys, name){
+            var name1 = (name === Null ? undefined : name);
+            keys.forEach(function(value, key){
+                var key1 = (key === Null ? undefined : key);
+                for(var i = 0; i < value.ref_count; ++i){
+                    msg_process.force_unlock(handler, name1, key1);
+                }
+            });
+        });
+    }
+
+    handler.add = function(name, key){
+        if(name === undefined) name = Null;
+        if(key === undefined) key = Null;
+console.log('add', name, key);
+
+        var keys = handler.pendings.get(name);
+        if(keys === undefined){
+            keys = new Map();
+            handler.pendings.set(name, keys);
+        }
+
+        var value = keys.get(key);
+        if(value === undefined){
+            value = {ref_count : 1};
+            keys.set(key, value);
+        }
+        else value.ref_count++;
+    }
+    handler.del = function(name, key){
+        if(name === undefined) name = Null;
+        if(key === undefined) key = Null;
+console.log('del', name, key)
+
+        var keys = handler.pendings.get(name);
+        if(keys === undefined) return;
+
+        var value = keys.get(key);
+        if(value === undefined) return;
+
+        if(value.ref_count > 0){
+            value.ref_count--;
+            if(value.ref_count === 0){
+                keys.delete(key);
+                if(keys.size === 0)
+                    handler.pendings.delete(name);
+            }
+        }
     }
 }
 
