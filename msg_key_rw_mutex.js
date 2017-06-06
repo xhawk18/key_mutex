@@ -6,7 +6,6 @@ var msg_tcp = require('./msg_tcp');
 var msg_process = require('./msg_process');
 
 var unique_name = 0;
-var unique_serial = 0;
 
 $.MasterMutex = function(name, messager){
     var thiz = this;
@@ -100,31 +99,31 @@ $.MasterMutex = function(name, messager){
     thiz.unlock_worker = function(key, worker){
         var mutex = getKey(key);
         if(mutex === undefined) return;
-console.log('unlock', thiz.name, key);
+        //console.log('unlock', thiz.name, key);
         unlock(mutex, key);
     }
 
     thiz.wlock_worker = function(key, worker){
-console.log('wlock', thiz.name, key);
+        //console.log('wlock', thiz.name, key);
         var mutex = obtainKey(key);
-        var serial = unique_serial++;
         return new Promise(function(resolve, reject){
-            mutex.wait_writer.push({resolve: resolve, reject: reject});
+            var waiter = {resolve: resolve, reject: reject};
+            mutex.wait_writer.push(waiter);
             next(mutex, key);
-        //}).then(function(){
-            return messager.lock_client(worker, serial, {'m_cmd': 'wlock', 'm_name': thiz.name, 'm_serial': serial, 'm_key': key});
+        }).then(function(){
+            return messager.lock_client(worker, {'m_cmd': 'wlock', 'm_name': thiz.name, 'm_key': key});
         });
     }
 
     thiz.rlock_worker = function(key, worker){
-console.log('rlock', thiz.name, key);
+        //console.log('rlock', thiz.name, key);
         var mutex = obtainKey(key);
-        var serial = unique_serial++;
         return new Promise(function(resolve, reject){
-            mutex.wait_reader.push({resolve: resolve, reject: reject});
+            var waiter = {resolve: resolve, reject: reject};
+            mutex.wait_reader.push(waiter);
             next(mutex, key);
-        //}).then(function(){
-            return messager.lock_client(worker, serial, {'m_cmd': 'rlock', 'm_name': thiz.name, 'm_serial': serial, 'm_key': key});
+        }).then(function(){
+            return messager.lock_client(worker, {'m_cmd': 'rlock', 'm_name': thiz.name, 'm_key': key});
         });
     }
 
@@ -202,24 +201,24 @@ function SlaveMutex(name, messager, timeout_ms){
         return value;
     }
 
-    var unlock = function(key, serial) {
-        return messager.send({'m_cmd': 'unlock', 'm_name': thiz.name, 'm_serial': serial, 'm_key': key});
+    var unlock = function(key) {
+        return messager.send({'m_cmd': 'unlock', 'm_name': thiz.name, 'm_key': key});
     }
     
-    thiz.on_wlock = function(key, serial){
+    thiz.on_wlock = function(key){
         var values = get_wait_writer(key);
         var op = values.shift();
         if(values.length === 0)
             wait_writer.delete(key);
-        op.resolve(serial);
+        op.resolve();
     }
     
-    thiz.on_rlock = function(key, serial){
+    thiz.on_rlock = function(key){
         var values = get_wait_reader(key);
         var op = values.shift();
         if(values.length === 0)
             wait_reader.delete(key);
-        op.resolve(serial);
+        op.resolve();
     }
 
     thiz.wlock = function(key, func) {
@@ -233,13 +232,13 @@ function SlaveMutex(name, messager, timeout_ms){
 
             get_wait_writer(key).push({resolve: resolve, reject: reject});
             return messager.send({'m_cmd': 'wlock', 'm_name': thiz.name, 'm_key': key});
-        }).then(function(serial){
+        }).then(function(){
             if(timer !== undefined) clearTimeout(timer);
             return func().then(function(ret){
-                unlock(key, serial);
+                unlock(key);
                 return ret;
             }, function(err){
-                unlock(key, serial);
+                unlock(key);
                 throw err;
             });
         });
@@ -256,13 +255,13 @@ function SlaveMutex(name, messager, timeout_ms){
 
             get_wait_reader(key).push({resolve: resolve, reject: reject});
             return messager.send({'m_cmd': 'rlock', 'm_name': thiz.name, 'm_key': key});
-        }).then(function(serial){
+        }).then(function(){
             if(timer !== undefined) clearTimeout(timer);
             return func().then(function(ret){
-                unlock(key, serial);
+                unlock(key);
                 return ret;
             }, function(err){
-                unlock(key, serial);
+                unlock(key);
                 throw err;
             });
         });

@@ -2,16 +2,21 @@ var cluster = require('cluster');
 var key_mutex = require('../index');
 //var key_mutex = require('key_mutex');
 
+if(false){
 if(cluster.isMaster){
     var mutex = key_mutex.mutex("abcd");
     key_mutex.server(9994);//, 5000);
 }
 else{
-   // if(Math.random() < 0.5)
+    if(Math.random() < 0.5)
         var mutex = key_mutex.mutex("abcd", "127.0.0.1:9994");//, 3000);
-   // else
-   //     var mutex = key_mutex.mutex("abcd");
+    else
+        var mutex = key_mutex.mutex("abcd");
 }
+}else
+
+var mutex = key_mutex.mutex("sss");
+
 
 var DELAY_MS = 150;
 var CLUSTER_NUM = 10;
@@ -222,7 +227,7 @@ if (cluster.isMaster) {
         })
     }
 
-    //main();
+    main();
 }
 else{
     var waits = new Map();

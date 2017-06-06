@@ -31,9 +31,9 @@ function Client(host, timeout_ms){
         if(mutex === undefined) return;
 
         if(msg.m_cmd === 'wlock')
-            mutex.on_wlock(msg.m_key, msg.m_serial);
+            mutex.on_wlock(msg.m_key);
         else if(msg.m_cmd === 'rlock')
-            mutex.on_rlock(msg.m_key, msg.m_serial);
+            mutex.on_rlock(msg.m_key);
     }
     
     thiz.send = function(msg){
@@ -149,9 +149,11 @@ function server_on_create_sock(socket, timeout_ms){
         });
     });
     
-    handler.lock = function(serial, msg){
-        if(handler.closed) {throw new Error('closed');}
-        //console.log(serial);
+    handler.lock = function(msg){
+        if(handler.closed) {
+            msg_process.force_unlock(handler, msg.m_name, msg.m_key);
+            throw new Error('closed');
+        }
        
         //console.log(timeout_ms, typeof msg, msg);
         handler.add(msg.m_name, msg.m_key);
@@ -162,7 +164,7 @@ function server_on_create_sock(socket, timeout_ms){
     handler.force_unlock = function(){
         var pendings = handler.pendings;
         handler.pendings = new Map();
-console.log(pendings);
+        //console.log(pendings);
         pendings.forEach(function(keys, name){
             var name1 = (name === Null ? undefined : name);
             keys.forEach(function(value, key){
@@ -177,7 +179,7 @@ console.log(pendings);
     handler.add = function(name, key){
         if(name === undefined) name = Null;
         if(key === undefined) key = Null;
-console.log('add', name, key);
+        //console.log('add', name, key);
 
         var keys = handler.pendings.get(name);
         if(keys === undefined){
@@ -195,7 +197,7 @@ console.log('add', name, key);
     handler.del = function(name, key){
         if(name === undefined) name = Null;
         if(key === undefined) key = Null;
-console.log('del', name, key)
+        //console.log('del', name, key)
 
         var keys = handler.pendings.get(name);
         if(keys === undefined) return;

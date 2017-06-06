@@ -29,7 +29,7 @@ $.on_message = function(msg, client){
 }
 
 $.force_unlock = function(client, name, key){
-    console.log('force_unlock', name, key);
+    //console.log('force_unlock', name, key);
     var mutex = mutexes.get(name);
     if(mutex === undefined)
         return;
@@ -40,8 +40,8 @@ $.send = function(msg){
     process.send(msg);
 }
 
-$.lock_client = function(client, serial, msg){
-    return client.lock(serial, msg);
+$.lock_client = function(client, msg){
+    return client.lock(msg);
 }
 
 
@@ -52,7 +52,7 @@ $.lock_client = function(client, serial, msg){
     if(cluster.isMaster){
         cluster.on('fork', function(worker){
             var client = {
-                lock: function(serial, msg){
+                lock: function(msg){
                     worker.send(msg);
                 }
             };
