@@ -44,6 +44,7 @@ async function test1(){
     var tasks = [ex1_task_a, ex1_task_b];
 
     var total_tasks = Math.floor(Math.random() * TASKS_PER_PROCESS);
+    ++total_tasks;  //avoid no tasks;
     for(var i = 0; i < total_tasks; ++i){
         var n = Math.floor(Math.random() * tasks.length);
         ret.push(tasks[n]());
@@ -69,7 +70,7 @@ async function main(){
     while(true){
         try{
             await test1();
-            console.log('test ok', i++);
+            console.log(`${worker_id()} test ok`, i++);
         }catch(err){
             console.log(err);
             break;

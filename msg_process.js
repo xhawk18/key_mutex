@@ -10,22 +10,28 @@ var msg_key_rw_mutex = require('./msg_key_rw_mutex');
 var mutexes = new Map();
 var callback_message_inited = false;
 
-$.on_message = function(msg, client){
-    var mutex = mutexes.get(msg.m_name);
+function get_mutex(name){
+    var mutex = mutexes.get(name);
     if(mutex === undefined){
-        new msg_key_rw_mutex.MasterMutex(msg.m_name, $);
-        var mutex = mutexes.get(msg.m_name);
-        if(mutex === undefined)
-            return;
+        new msg_key_rw_mutex.MasterMutex(name, $);
+        mutex = mutexes.get(name);
     }
-    
+    return mutex;
+}
 
-    if(msg.m_cmd === 'unlock')
-        mutex.unlock_worker(msg.m_key, client);
-    else if(msg.m_cmd === 'wlock')
-        mutex.wlock_worker(msg.m_key, client);
-    else if(msg.m_cmd === 'rlock')
-        mutex.rlock_worker(msg.m_key, client);
+$.on_message = function(msg, client){
+    if(msg.m_cmd === 'unlock'){
+        var mutex = get_mutex(msg.m_name);
+        if(mutex !== undefined) mutex.unlock_worker(msg.m_key, client);
+    }
+    else if(msg.m_cmd === 'wlock'){
+        var mutex = get_mutex(msg.m_name);
+        if(mutex !== undefined) mutex.wlock_worker(msg.m_key, client);
+    }
+    else if(msg.m_cmd === 'rlock'){
+        var mutex = get_mutex(msg.m_name);
+        if(mutex !== undefined) mutex.rlock_worker(msg.m_key, client);
+    }
 }
 
 $.force_unlock = function(client, name, key){
