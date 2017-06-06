@@ -111,7 +111,7 @@ console.log('wlock', thiz.name, key);
         return new Promise(function(resolve, reject){
             mutex.wait_writer.push({resolve: resolve, reject: reject});
             next(mutex, key);
-        }).then(function(){
+        //}).then(function(){
             return messager.lock_client(worker, serial, {'m_cmd': 'wlock', 'm_name': thiz.name, 'm_serial': serial, 'm_key': key});
         });
     }
@@ -123,7 +123,7 @@ console.log('rlock', thiz.name, key);
         return new Promise(function(resolve, reject){
             mutex.wait_reader.push({resolve: resolve, reject: reject});
             next(mutex, key);
-        }).then(function(){
+        //}).then(function(){
             return messager.lock_client(worker, serial, {'m_cmd': 'rlock', 'm_name': thiz.name, 'm_serial': serial, 'm_key': key});
         });
     }
