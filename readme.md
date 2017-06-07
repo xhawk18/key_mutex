@@ -5,6 +5,7 @@ key_mutex is a mutex module that supports -
 * reader-writer mutex
 * lock on a named key
 * nodejs cluster
+* distributed mutex on network
 
 ## Example 1 - simple mutex
 ```javascript
@@ -245,7 +246,23 @@ var mutex = key_mutex.mutex();
 For named mutex, you can specifiy a string name as parameters,
 which is useful if the mutex is created after cluster forked.
 ```javascript
-var mutex = key_mutex.mutex([name]);
+var mutex = key_mutex.mutex(name);
+```
+
+## Create a distributed mutex on network
+We can setup named mutex on server. for example --
+* On host 192.168.1.2, start a mutex server on port 8888,
+```javascript
+key_mutex.server(8888);
+```
+* Other client can create mutex on this server
+```javascript
+key_mutex.mutex('my_mutex_name', '192.168.1.2:8888');
+```
+Distributed mutex API
+```javascript
+key_mutex.server(port, [timeout_ms]);
+var mutex = key_mutex.mutex(name, host, [timeout_ms]);
 ```
 
 ## Simple lock
