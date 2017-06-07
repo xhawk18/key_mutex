@@ -202,37 +202,53 @@ function SlaveMutex(name, messager, timeout_ms){
     }
 
     var unlock = function(key) {
-        return messager.send({'m_cmd': 'unlock', 'm_name': thiz.name, 'm_key': key});
+        return messager.send(undefined, {'m_cmd': 'unlock', 'm_name': thiz.name, 'm_key': key});
     }
     
     thiz.on_wlock = function(key){
         var values = get_wait_writer(key);
-        var op = values.shift();
-        if(values.length === 0)
-            wait_writer.delete(key);
-        op.resolve();
+        while(values.length > 0){
+            var op = values.shift();
+            if(values.length === 0)
+                wait_writer.delete(key);
+            if(!op.done){ 
+                op.done = true;
+                op.resolve();
+                break;
+            }
+        }
     }
     
     thiz.on_rlock = function(key){
         var values = get_wait_reader(key);
-        var op = values.shift();
-        if(values.length === 0)
-            wait_reader.delete(key);
-        op.resolve();
+        while(values.length > 0){
+            var op = values.shift();
+            if(values.length === 0)
+                wait_reader.delete(key);
+            if(!op.done){
+                op.done = true;
+                op.resolve();
+                break;
+            }
+        }
     }
 
     thiz.wlock = function(key, func) {
         var timer = undefined;
+        var waiter = undefined;
         return new Promise(function(resolve, reject){
+            waiter = {resolve: resolve, reject: reject};
             if(timeout_ms !== undefined)
                 timer = setTimeout(function(){
                     timer = undefined;
+                    waiter.done = true;
                     reject(new Error('timeout'));
                 }, timeout_ms);
 
-            get_wait_writer(key).push({resolve: resolve, reject: reject});
-            return messager.send({'m_cmd': 'wlock', 'm_name': thiz.name, 'm_key': key});
+            get_wait_writer(key).push(waiter);
+            messager.send(waiter, {'m_cmd': 'wlock', 'm_name': thiz.name, 'm_key': key});
         }).then(function(){
+            if(waiter.connection !== undefined) waiter.connection.del_waiter(waiter);
             if(timer !== undefined) clearTimeout(timer);
             return func().then(function(ret){
                 unlock(key);
@@ -241,21 +257,29 @@ function SlaveMutex(name, messager, timeout_ms){
                 unlock(key);
                 throw err;
             });
+        }, function(err){
+            if(waiter.connection !== undefined) waiter.connection.del_waiter(waiter);
+            if(timer !== undefined) clearTimeout(timer);
+            throw err;
         });
     }
 
     thiz.rlock = function(key, func) {
         var timer = undefined;
+        var waiter = undefined;
         return new Promise(function(resolve, reject){
+            waiter = {resolve: resolve, reject: reject};
             if(timeout_ms !== undefined)
                 timer = setTimeout(function(){
                     timer = undefined;
+                    waiter.done = true;
                     reject(new Error('timeout'));
                 }, timeout_ms);
 
-            get_wait_reader(key).push({resolve: resolve, reject: reject});
-            return messager.send({'m_cmd': 'rlock', 'm_name': thiz.name, 'm_key': key});
+            get_wait_reader(key).push(waiter);
+            messager.send(waiter, {'m_cmd': 'rlock', 'm_name': thiz.name, 'm_key': key});
         }).then(function(){
+            if(waiter.connection !== undefined) waiter.connection.del_waiter(waiter);
             if(timer !== undefined) clearTimeout(timer);
             return func().then(function(ret){
                 unlock(key);
@@ -264,7 +288,11 @@ function SlaveMutex(name, messager, timeout_ms){
                 unlock(key);
                 throw err;
             });
-        });
+        }, function(err){
+            if(waiter.connection !== undefined) waiter.connection.del_waiter(waiter);
+            if(timer !== undefined) clearTimeout(timer);
+            throw err;
+         });
     }
 
     thiz.lock = thiz.wlock;

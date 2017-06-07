@@ -36,7 +36,7 @@ $.force_unlock = function(client, name, key){
     mutex.unlock_worker(key, client); 
 }
 
-$.send = function(msg){
+$.send = function(waiter, msg){
     process.send(msg);
 }
 

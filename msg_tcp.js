@@ -36,9 +36,13 @@ function Client(host, timeout_ms){
             mutex.on_rlock(msg.m_key);
     }
     
-    thiz.send = function(msg){
+    thiz.send = function(waiter, msg){
         var str = JSON.stringify(msg);
         return connect_server(thiz, host, timeout_ms).then(function(connection){
+            if(waiter !== undefined){
+                waiter.connection = connection;
+                connection.add_waiter(waiter);
+            }
             return connection.send(timeout_ms, str);
         });
     }
@@ -228,6 +232,7 @@ function connect_server_once(client, host, timeout_ms){
         var handler = {};
         handler.defer_list = new util.defer_list();
         handler.defer_list.add(resolve, reject);
+        handler.waiters = new Set();
         handlers.set(host, handler);
 
         var connect_args = {};
@@ -259,6 +264,12 @@ function connect_server_once(client, host, timeout_ms){
             handlers.delete(host);
             handler.connected = false;
             handler.defer_list.reject();
+            var waiters = handler.waiters;
+            handler.waiters = new Set();
+            waiters.forEach(function(waiter){
+                waiter.done = true;
+                waiter.reject(new Error('closed'));
+            });
         }
 
         var buf = Buffer.allocUnsafe(0);
@@ -272,6 +283,13 @@ function connect_server_once(client, host, timeout_ms){
         handler.send = function(timeout_ms, str){
             //console.log(typeof str, str);
             send_socket_data(timeout_ms, socket, str);
+        }
+
+        handler.add_waiter = function(waiter){
+            handler.waiters.add(waiter);
+        }
+        handler.del_waiter = function(waiter){
+            handler.waiters.delete(waiter);
         }
 
         socket.on('end', close_sock);
