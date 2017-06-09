@@ -307,7 +307,7 @@ mutex.wlock(key, async function(){
 });
 ```
 
-## destroy the mutex (for cluster mode only)
+## destroy the mutex (required by cluster or distributed mode only)
 ```javascript
 mutex.destroy();
 ```
